@@ -89,6 +89,17 @@
         body { color: var(--gm-dark); line-height: 1.5; transition: background-color 0.2s, color 0.2s; }
         .container { max-width: 1200px; margin: 0 auto; padding: 0 20px 20px 20px; }
 
+        /* Layout de dos columnas en pantallas anchas: mapa+filtros a la izquierda,
+           IA+resultados a la derecha. En móvil todo se apila en una sola columna, tal
+           cual estaba. JS mueve #aiPanel y #filtersContent entre sus dos posibles
+           ubicaciones (ver applyResponsiveLayout). */
+        @media (min-width: 960px) {
+            .app-layout { display: grid; grid-template-columns: 380px 1fr; gap: 28px; align-items: start; }
+            .layout-left { position: sticky; top: 20px; }
+            .hero-search-wrap { display: none; }
+            #filtersTriggerBtn { display: none; }
+        }
+
         /* Cabecera tipo app: banda de color a todo lo ancho, con el buscador de IA
            flotando encima del borde inferior — nada de todo apilado en cajas iguales. */
         .hero {
@@ -115,8 +126,51 @@
             font-size: 0.95rem; color: var(--gm-gray); margin-bottom: 8px; display: flex;
             justify-content: space-between; align-items: center;
         }
+        .map-header-actions { display: flex; align-items: center; gap: 8px; }
+        .btn-fullscreen-toggle {
+            border: 1px solid var(--gm-border); background: var(--gm-card-bg); color: var(--gm-dark);
+            width: 26px; height: 26px; border-radius: 6px; font-size: 0.9rem; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .btn-fullscreen-toggle:hover { background: var(--gm-hover-bg); }
         #globalMap { width: 100%; height: 260px; border-radius: 8px; border: 1px solid var(--gm-border); background-color: var(--gm-map-placeholder); }
-        
+
+        /* Mapa a pantalla completa: la misma sección/instancia de mapa, solo que fija a
+           toda la ventana. Al cerrar, vuelve a su sitio (columna izquierda en escritorio,
+           apilado en móvil) — no es un mapa distinto, es el mismo redimensionado. */
+        .global-map-section.fullscreen-map {
+            position: fixed; inset: 0; z-index: 2000; border-radius: 0; margin: 0;
+            display: flex; flex-direction: column; padding: 0;
+        }
+        .global-map-section.fullscreen-map h2,
+        .global-map-section.fullscreen-map .location-toggle { display: none; }
+        .global-map-section.fullscreen-map #globalMap { flex-grow: 1; height: auto; border-radius: 0; border: none; }
+        .map-fullscreen-bar {
+            position: absolute; top: 12px; left: 12px; z-index: 6;
+        }
+        .map-fullscreen-bar .btn-icon-action { background: var(--gm-card-bg); box-shadow: 0 2px 8px rgba(0,0,0,0.25); }
+
+        /* Ficha de detalle al tocar una chincheta del mapa (sustituye al InfoWindow
+           básico de Google), funciona igual en el mapa normal y en el de pantalla
+           completa. */
+        .map-detail-card {
+            position: absolute; left: 0; right: 0; bottom: 0; z-index: 7;
+            background: var(--gm-card-bg); border-radius: 18px 18px 0 0; box-shadow: 0 -8px 24px rgba(0,0,0,0.2);
+            padding: 16px 18px 18px 18px; max-height: 60%; overflow-y: auto;
+        }
+        .global-map-section.fullscreen-map .map-detail-card { position: fixed; z-index: 2001; }
+        .map-detail-close {
+            position: absolute; top: 10px; right: 10px; background: var(--gm-hover-bg);
+            border-radius: 50%; width: 28px; height: 28px;
+        }
+        .map-detail-photo { width: 100%; height: 140px; border-radius: 12px; background-size: cover; background-position: center; background-color: var(--gm-hover-bg); margin-bottom: 10px; }
+        .map-detail-title { font-family: 'Poppins', sans-serif; font-size: 1.1rem; font-weight: 600; margin-bottom: 4px; padding-right: 30px; }
+        .map-detail-meta { font-size: 0.85rem; color: var(--gm-gray); margin-bottom: 4px; }
+        .map-detail-address { font-size: 0.85rem; color: var(--gm-gray); margin-bottom: 12px; }
+        .map-detail-actions { display: flex; gap: 8px; }
+
+        .filters-desktop-title { font-family: 'Poppins', sans-serif; font-size: 1.05rem; margin-bottom: 14px; }
+
         .btn-geolocation {
             position: absolute;
             top: 52px;
@@ -522,38 +576,65 @@
     </dialog>
 
     <main class="container">
-        <!-- Mapa General API de Google Maps con Botón de Ubicación -->
-        <section class="global-map-section">
-            <h2>Mapa de Resultados <span id="mapCounterBadge" style="font-size:0.75rem; background:var(--gm-blue-bg); color:var(--gm-blue); padding:2px 8px; border-radius:12px;">Esperando datos...</span></h2>
-            <button class="btn-geolocation" onclick="centerOnUserLocation()" title="Centrar mapa en mi posición actual">
-                <svg viewBox="0 0 24 24"><path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3c-.46-4.17-3.77-7.48-7.94-7.94V1h-2v2.06C6.83 3.52 3.52 6.83 3.06 11H1v2h2.06c.46 4.17 3.77 7.48 7.94 7.94V23h2v-2.06c4.17-.46 7.48-3.77 7.94-7.94H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>
-                Centrar en mi ubicación
-            </button>
-            <div id="globalMap"></div>
-            <label class="location-toggle">
-                <input type="checkbox" id="useLocationCheckbox" checked onchange="onUseLocationToggle()">
-                Usar mi ubicación GPS (se pide una sola vez; desmárcalo si prefieres buscar solo por localidad)
-            </label>
-        </section>
-
-        <!-- Búsqueda manual + botón de filtros: los filtros en sí viven en una hoja
-             inferior (bottom sheet) que se abre bajo demanda, para no ocupar espacio fijo
-             en pantallas de móvil pequeñas. -->
-        <section class="search-row-panel">
-            <div class="search-box">
-                <input type="text" id="searchInput" placeholder="Buscar por nombre o calle...">
-                <button class="btn-icon-action" onclick="startNewSearch()" title="Buscar">🔍</button>
-                <button class="btn-icon-action" onclick="openFiltersDialog()" title="Filtros">
-                    🔧<span class="filters-badge" id="filtersBadge" style="display:none;">0</span>
+      <div class="app-layout" id="appLayout">
+        <aside class="layout-left" id="layoutLeft">
+            <!-- Mapa General API de Google Maps con Botón de Ubicación -->
+            <section class="global-map-section" id="mapSection">
+                <h2>Mapa de Resultados
+                    <span class="map-header-actions">
+                        <span id="mapCounterBadge" style="font-size:0.75rem; background:var(--gm-blue-bg); color:var(--gm-blue); padding:2px 8px; border-radius:12px;">Esperando datos...</span>
+                        <button class="btn-fullscreen-toggle" onclick="toggleFullscreenMap()" title="Ver mapa completo">⛶</button>
+                    </span>
+                </h2>
+                <button class="btn-geolocation" onclick="centerOnUserLocation()" title="Centrar mapa en mi posición actual">
+                    <svg viewBox="0 0 24 24"><path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3c-.46-4.17-3.77-7.48-7.94-7.94V1h-2v2.06C6.83 3.52 3.52 6.83 3.06 11H1v2h2.06c.46 4.17 3.77 7.48 7.94 7.94V23h2v-2.06c4.17-.46 7.48-3.77 7.94-7.94H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>
+                    Centrar en mi ubicación
                 </button>
-                <button class="btn-icon-action" onclick="forceDataSync()" title="Recargar datos de Google">↻</button>
-            </div>
-        </section>
+                <div class="map-fullscreen-bar" id="mapFullscreenBar" style="display:none;">
+                    <button class="btn-icon-action" onclick="toggleFullscreenMap()" title="Cerrar mapa completo">✕</button>
+                </div>
+                <div id="globalMap"></div>
+                <!-- Ficha de detalle al tocar una chincheta: sustituye al InfoWindow básico
+                     de Google, funciona igual en el mapa normal que en el de pantalla
+                     completa. -->
+                <div class="map-detail-card" id="mapDetailCard" style="display:none;">
+                    <button class="ai-collapse-btn map-detail-close" onclick="closeMapDetailCard()" title="Cerrar ficha">✕</button>
+                    <div id="mapDetailCardContent"></div>
+                </div>
+                <label class="location-toggle">
+                    <input type="checkbox" id="useLocationCheckbox" checked onchange="onUseLocationToggle()">
+                    Usar mi ubicación GPS (se pide una sola vez; desmárcalo si prefieres buscar solo por localidad)
+                </label>
+            </section>
+
+            <!-- En pantallas anchas los filtros viven aquí, visibles siempre (JS traslada
+                 #filtersContent desde el diálogo de abajo hasta aquí). En móvil se quedan
+                 en el diálogo. -->
+            <section class="filters-panel" id="filtersDesktopSlot" style="display:none;">
+                <h2 class="filters-desktop-title">Filtros</h2>
+            </section>
+        </aside>
+
+        <div class="layout-right" id="layoutRight">
+            <!-- Búsqueda manual + botón de filtros: en móvil los filtros viven en una hoja
+                 inferior (bottom sheet) que se abre bajo demanda; en pantallas anchas ya
+                 están visibles en la columna izquierda y este botón se oculta. -->
+            <section class="search-row-panel">
+                <div class="search-box">
+                    <input type="text" id="searchInput" placeholder="Buscar por nombre o calle...">
+                    <button class="btn-icon-action" onclick="startNewSearch()" title="Buscar">🔍</button>
+                    <button class="btn-icon-action" id="filtersTriggerBtn" onclick="openFiltersDialog()" title="Filtros">
+                        🔧<span class="filters-badge" id="filtersBadge" style="display:none;">0</span>
+                    </button>
+                    <button class="btn-icon-action" onclick="forceDataSync()" title="Recargar datos de Google">↻</button>
+                </div>
+            </section>
 
         <dialog id="filtersDialog" class="apikey-dialog bottom-sheet">
-            <div class="bottom-sheet-handle"></div>
-            <h2>Filtros <button type="button" class="ai-collapse-btn" onclick="document.getElementById('filtersDialog').close()" title="Cerrar">✕</button></h2>
+            <div class="bottom-sheet-handle" id="bottomSheetHandle"></div>
+            <h2 id="filtersDialogTitle">Filtros <button type="button" class="ai-collapse-btn" onclick="document.getElementById('filtersDialog').close()" title="Cerrar">✕</button></h2>
 
+            <div id="filtersContent">
             <div class="chip-group">
                 <span class="chip-group-label">Cercanía</span>
                 <div class="chip-row" id="radiusOptions">
@@ -603,8 +684,9 @@
                     <label class="chip"><input type="checkbox" value="4.5" onchange="processAndRenderCurrentPage(); updateFiltersBadge();"><span>★ 4.5+</span></label>
                 </div>
             </div>
+            </div>
 
-            <div class="apikey-dialog-actions">
+            <div class="apikey-dialog-actions" id="filtersDialogActions">
                 <button type="button" class="btn-action" onclick="document.getElementById('filtersDialog').close()">Ver resultados</button>
             </div>
         </dialog>
@@ -633,6 +715,8 @@
 
         <!-- Vista de descubrimiento tipo swipe -->
         <div id="swipeContainer" class="swipe-container" style="display:none;"></div>
+        </div>
+      </div>
     </main>
 
     <!-- Diálogo de favoritos guardados -->
@@ -1712,14 +1796,7 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
                 });
 
                 google.maps.event.addListener(marker, 'click', () => {
-                    infoWindow.setContent(`
-                        <div style="padding: 5px;">
-                            <strong>${escapeHtml(place.displayName)}</strong><br>
-                            ${escapeHtml(place.formattedAddress)}<br>
-                            <a href="https://www.google.com/maps/place/?q=place_id:${encodeURIComponent(place.id)}" target="_blank" style="color:var(--gm-blue); text-decoration:none; display:block; margin-top:5px;">Abrir ficha completa</a>
-                        </div>
-                    `);
-                    infoWindow.open(map, marker);
+                    showMapDetailCard(place);
                 });
 
                 googleMarkers.push(marker);
@@ -1738,6 +1815,91 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
             googleMarkers.forEach(marker => marker.setMap(null));
             googleMarkers = [];
         }
+
+        // Ficha de detalle al tocar una chincheta del mapa: mismo contenido que una
+        // tarjeta de la rejilla, pero flotando sobre el propio mapa (funciona igual en
+        // el mapa normal que en el de pantalla completa).
+        function showMapDetailCard(place) {
+            const photoUrl = getPlacePhotoUrl(place, 400, 260);
+            const photoHtml = photoUrl
+                ? `<div class="map-detail-photo" style="background-image:url('${photoUrl}');"></div>`
+                : '';
+            const ratingStr = place.rating ? `★ ${place.rating.toFixed(1)}` : 'Sin valoración';
+            const totalReviews = place.userRatingCount ? ` (${place.userRatingCount} reseñas)` : '';
+            const priceLevelNum = priceLevelToNumber(place.priceLevel);
+            const priceStr = priceLevelNum ? ' · ' + '€'.repeat(priceLevelNum) : '';
+
+            const mapUrl = `https://www.google.com/maps/place/?q=place_id:${encodeURIComponent(place.id)}`;
+            const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination_place_id=${encodeURIComponent(place.id)}`;
+
+            document.getElementById('mapDetailCardContent').innerHTML = `
+                ${photoHtml}
+                <div class="map-detail-title">${escapeHtml(place.displayName)}</div>
+                <div class="map-detail-meta">${ratingStr}${totalReviews}${priceStr}</div>
+                <div class="map-detail-address">${escapeHtml(place.formattedAddress)}</div>
+                <div class="map-detail-actions">
+                    <a href="${directionsUrl}" target="_blank" class="gm-btn btn-directions">Cómo llegar</a>
+                    <a href="${mapUrl}" target="_blank" class="gm-btn btn-outline">Ver en Maps</a>
+                </div>
+            `;
+            document.getElementById('mapDetailCard').style.display = 'block';
+        }
+
+        function closeMapDetailCard() {
+            document.getElementById('mapDetailCard').style.display = 'none';
+        }
+
+        // Mapa a pantalla completa: es la misma sección/instancia de Google Maps, solo
+        // redimensionada con CSS. Google necesita que se le avise explícitamente de que
+        // su contenedor cambió de tamaño (si no, se queda con los tiles a medio cargar).
+        function toggleFullscreenMap() {
+            const section = document.getElementById('mapSection');
+            const isFullscreen = section.classList.toggle('fullscreen-map');
+            document.getElementById('mapFullscreenBar').style.display = isFullscreen ? 'flex' : 'none';
+            closeMapDetailCard();
+            if (map) {
+                setTimeout(() => {
+                    google.maps.event.trigger(map, 'resize');
+                    if (userPosition) map.setCenter(userPosition);
+                }, 50);
+            }
+        }
+
+        // Layout responsivo: en pantallas anchas, el panel de IA y el contenido de los
+        // filtros se trasladan (no se duplican) a la columna izquierda/derecha
+        // correspondiente; en móvil vuelven a sus sitios originales (superpuesto a la
+        // cabecera / diálogo tipo bottom sheet). Es el mismo DOM movido de sitio, así que
+        // toda la lógica de eventos ya existente sigue funcionando igual.
+        const desktopLayoutQuery = window.matchMedia('(min-width: 960px)');
+        function applyResponsiveLayout() {
+            const isDesktop = desktopLayoutQuery.matches;
+            const aiPanel = document.getElementById('aiPanel');
+            const heroSlot = document.querySelector('.hero-search-wrap');
+            const layoutRight = document.getElementById('layoutRight');
+            const filtersContent = document.getElementById('filtersContent');
+            const filtersDesktopSlot = document.getElementById('filtersDesktopSlot');
+            const filtersDialog = document.getElementById('filtersDialog');
+
+            if (isDesktop) {
+                if (aiPanel.parentElement !== layoutRight) layoutRight.insertBefore(aiPanel, layoutRight.firstChild);
+                if (filtersContent.parentElement !== filtersDesktopSlot) filtersDesktopSlot.appendChild(filtersContent);
+                filtersDesktopSlot.style.display = 'block';
+                if (filtersDialog.open) filtersDialog.close();
+            } else {
+                if (aiPanel.parentElement !== heroSlot) heroSlot.appendChild(aiPanel);
+                if (filtersContent.parentElement !== filtersDialog) filtersDialog.insertBefore(filtersContent, document.getElementById('filtersDialogActions'));
+                filtersDesktopSlot.style.display = 'none';
+            }
+        }
+        applyResponsiveLayout();
+        desktopLayoutQuery.addEventListener('change', applyResponsiveLayout);
+        // Respaldo por si algún navegador no dispara 'change' de forma fiable (p.ej. al
+        // rotar un móvil con la PWA instalada): un resize normal, con un pequeño debounce.
+        let resizeLayoutTimeout = null;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeLayoutTimeout);
+            resizeLayoutTimeout = setTimeout(applyResponsiveLayout, 150);
+        });
 
         document.getElementById('searchInput').addEventListener('keypress', function (e) {
             if (e.key === 'Enter') startNewSearch();
