@@ -1,0 +1,1652 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Antojo — Directorio Gastronómico con Geolocalización</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        /* Identidad propia: paleta cálida (terracota/ámbar) en vez del azul/gris de Google,
+           con soporte de modo oscuro. Los nombres de variable (--gm-*) se mantienen por no
+           tocar cada uso en el CSS, pero los valores ya no imitan el estilo de Google Maps. */
+        :root {
+            --gm-blue: #E4572E;
+            --gm-blue-hover: #C7431B;
+            --gm-dark: #2B241E;
+            --gm-gray: #8A7B6C;
+            --gm-bg: #FBF7F2;
+            --gm-border: #E8DFD5;
+            --gm-card-bg: #FFFFFF;
+            --gm-yellow: #F4A620;
+            --gm-hover-bg: #F5EDE4;
+            --gm-green: #3A8F5B;
+            --gm-green-hover: #2F7549;
+            --gm-red: #D64550;
+            --gm-red-bg: #FBE7E5;
+            --gm-blue-bg: #FBE9E2;
+            --gm-map-placeholder: #EDE3D8;
+            --gm-footer-bg: #FAF5EF;
+            --gm-ai-bg: #FFF3E9;
+            --gm-ai-border: #F4D4B8;
+            --gm-photo-empty-text: #A99A8A;
+        }
+        :root[data-theme="dark"] {
+            --gm-blue: #F2784B;
+            --gm-blue-hover: #F58F68;
+            --gm-dark: #F2EAE1;
+            --gm-gray: #B8AA9C;
+            --gm-bg: #1B1714;
+            --gm-border: #3A322B;
+            --gm-card-bg: #241F1B;
+            --gm-yellow: #F6B93B;
+            --gm-hover-bg: #2E2721;
+            --gm-green: #4CAF7A;
+            --gm-green-hover: #5FC28D;
+            --gm-red: #E8636F;
+            --gm-red-bg: #3A2320;
+            --gm-blue-bg: #3A2A20;
+            --gm-map-placeholder: #2A2420;
+            --gm-footer-bg: #201B17;
+            --gm-ai-bg: #2B2118;
+            --gm-ai-border: #4A3826;
+            --gm-photo-empty-text: #7A6C5E;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root:not([data-theme="light"]) {
+                --gm-blue: #F2784B;
+                --gm-blue-hover: #F58F68;
+                --gm-dark: #F2EAE1;
+                --gm-gray: #B8AA9C;
+                --gm-bg: #1B1714;
+                --gm-border: #3A322B;
+                --gm-card-bg: #241F1B;
+                --gm-yellow: #F6B93B;
+                --gm-hover-bg: #2E2721;
+                --gm-green: #4CAF7A;
+                --gm-green-hover: #5FC28D;
+                --gm-red: #E8636F;
+                --gm-red-bg: #3A2320;
+                --gm-blue-bg: #3A2A20;
+                --gm-map-placeholder: #2A2420;
+                --gm-footer-bg: #201B17;
+                --gm-ai-bg: #2B2118;
+                --gm-ai-border: #4A3826;
+                --gm-photo-empty-text: #7A6C5E;
+            }
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', -apple-system, Segoe UI, Arial, sans-serif; }
+        html, body { background-color: var(--gm-bg); }
+        body { color: var(--gm-dark); line-height: 1.5; transition: background-color 0.2s, color 0.2s; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 20px 20px 20px; }
+
+        /* Cabecera tipo app: banda de color a todo lo ancho, con el buscador de IA
+           flotando encima del borde inferior — nada de todo apilado en cajas iguales. */
+        .hero {
+            background: linear-gradient(135deg, var(--gm-blue) 0%, #ff8f5e 100%);
+            padding: 26px 20px 70px 20px; position: relative; color: #fff;
+        }
+        .hero-top { max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+        .hero-titles h1 { font-family: 'Poppins', sans-serif; font-size: 1.9rem; font-weight: 700; margin-bottom: 4px; }
+        .hero-titles p { color: rgba(255,255,255,0.88); font-size: 0.95rem; }
+        .header-corner-actions { position: static; display: flex; gap: 8px; flex-shrink: 0; }
+        .btn-settings, .btn-theme-toggle { background-color: rgba(255,255,255,0.18); color: #fff; border: 1px solid rgba(255,255,255,0.35); }
+        .btn-settings:hover, .btn-theme-toggle:hover { background-color: rgba(255,255,255,0.3); }
+        .btn-settings.has-key { background-color: var(--gm-green); border-color: var(--gm-green); }
+
+        .hero-search-wrap { max-width: 900px; margin: -50px auto 0 auto; padding: 0 20px; position: relative; z-index: 5; }
+
+        /* Mapa General y Botón de Geolocalización */
+        .global-map-section {
+            background: var(--gm-card-bg); border: 1px solid var(--gm-border); border-radius: 12px;
+            padding: 12px; margin-bottom: 25px; box-shadow: 0 1px 3px rgba(60,64,67,0.1);
+            position: relative;
+        }
+        .global-map-section h2 {
+            font-size: 0.95rem; color: var(--gm-gray); margin-bottom: 8px; display: flex;
+            justify-content: space-between; align-items: center;
+        }
+        #globalMap { width: 100%; height: 260px; border-radius: 8px; border: 1px solid var(--gm-border); background-color: var(--gm-map-placeholder); }
+        
+        .btn-geolocation {
+            position: absolute;
+            top: 52px;
+            right: 20px;
+            z-index: 5;
+            background-color: var(--gm-card-bg);
+            color: var(--gm-dark);
+            border: 1px solid var(--gm-border);
+            padding: 8px 12px;
+            border-radius: 4px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: background-color 0.2s;
+        }
+        .btn-geolocation:hover { background-color: var(--gm-hover-bg); }
+        .btn-geolocation svg { width: 16px; height: 16px; fill: var(--gm-blue); }
+
+        /* Panel de Filtros */
+        .filters-panel {
+            background: var(--gm-card-bg); border: 1px solid var(--gm-border); border-radius: 18px;
+            padding: 22px; margin-bottom: 28px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        .search-box { margin-bottom: 20px; display: flex; gap: 10px; }
+        .search-box input {
+            flex-grow: 1; padding: 12px 16px; font-size: 1rem; border: 1px solid var(--gm-border);
+            border-radius: 8px; outline: none; transition: border-color 0.2s;
+        }
+        .search-box input:focus { border-color: var(--gm-blue); }
+
+        .btn-action {
+            background-color: var(--gm-blue); color: white; border: none; padding: 0 20px;
+            border-radius: 8px; font-weight: 500; cursor: pointer; font-size: 0.95rem; white-space: nowrap;
+        }
+        .btn-action:hover { background-color: var(--gm-blue-hover); }
+        .btn-sync { background-color: var(--gm-green); }
+        .btn-sync:hover { background-color: var(--gm-green-hover); }
+
+        /* Filtros como chips/píldoras siempre visibles: se toca directamente, sin abrir
+           nada — patrón de app (Airbnb, apps de comida), no de formulario de admin. */
+        .chip-group { margin-bottom: 18px; }
+        .chip-group:last-child { margin-bottom: 0; }
+        .chip-group-label {
+            display: block; font-size: 0.75rem; font-weight: 700; color: var(--gm-gray);
+            text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px;
+        }
+        .chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
+        .chip { cursor: pointer; position: relative; }
+        .chip input { position: absolute; opacity: 0; width: 0; height: 0; }
+        .chip span {
+            display: inline-flex; align-items: center; padding: 8px 16px; border-radius: 20px;
+            border: 1px solid var(--gm-border); background: var(--gm-bg); color: var(--gm-dark);
+            font-size: 0.85rem; font-weight: 500; transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+            white-space: nowrap;
+        }
+        .chip:hover span { background: var(--gm-hover-bg); }
+        .chip input:checked + span {
+            background: var(--gm-blue); border-color: var(--gm-blue); color: #fff; font-weight: 600;
+        }
+        .chip input:focus-visible + span { outline: 2px solid var(--gm-blue); outline-offset: 2px; }
+
+        .results-info { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; font-size: 0.9rem; color: var(--gm-gray); flex-wrap: wrap; gap: 10px; }
+        .results-info-right { display: flex; align-items: center; gap: 10px; }
+
+        .view-toggle { display: flex; gap: 6px; background: var(--gm-hover-bg); padding: 4px; border-radius: 20px; }
+        .view-toggle-btn {
+            border: none; background: transparent; padding: 6px 14px; border-radius: 16px; font-size: 0.82rem;
+            font-weight: 500; cursor: pointer; color: var(--gm-gray);
+        }
+        .view-toggle-btn.active { background: var(--gm-card-bg); color: var(--gm-blue); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+
+        .btn-favorites {
+            border: 1px solid var(--gm-border); background: var(--gm-card-bg); padding: 6px 14px; border-radius: 20px;
+            font-size: 0.82rem; font-weight: 500; color: var(--gm-dark); cursor: pointer;
+        }
+        .btn-favorites:hover { background-color: var(--gm-hover-bg); }
+
+        /* Vista de descubrimiento tipo swipe */
+        .swipe-container { display: flex; flex-direction: column; align-items: center; gap: 24px; margin: 10px 0 40px 0; }
+        .swipe-card {
+            width: 100%; max-width: 380px; background: var(--gm-card-bg); border: 1px solid var(--gm-border);
+            border-radius: 18px; overflow: hidden; box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+            touch-action: none; cursor: grab; user-select: none; will-change: transform;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+        }
+        .swipe-card:active { cursor: grabbing; }
+        .swipe-card.dragging { transition: none; }
+        .swipe-card-photo { width: 100%; height: 320px; background-color: var(--gm-hover-bg); background-size: cover; background-position: center; position: relative; }
+        .swipe-card-body { padding: 20px; }
+        .swipe-card-title { font-family: 'Poppins', sans-serif; font-size: 1.3rem; font-weight: 600; color: var(--gm-dark); margin-bottom: 10px; }
+        .swipe-card-address { font-size: 0.85rem; color: var(--gm-gray); }
+        .swipe-actions { display: flex; gap: 28px; }
+        .swipe-btn {
+            width: 60px; height: 60px; border-radius: 50%; font-size: 1.5rem; cursor: pointer;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.18); border: none;
+        }
+        .swipe-btn-discard { background: var(--gm-card-bg); color: var(--gm-red); border: 2px solid var(--gm-red); }
+        .swipe-btn-like { background: var(--gm-green); color: #fff; }
+        .swipe-progress { font-size: 0.85rem; color: var(--gm-gray); }
+        .swipe-empty { text-align: center; padding: 60px 20px; color: var(--gm-gray); max-width: 380px; }
+
+        .favorites-list { display: flex; flex-direction: column; gap: 10px; max-height: 50vh; overflow-y: auto; margin-bottom: 16px; }
+        .favorite-item {
+            display: flex; justify-content: space-between; align-items: center; gap: 10px;
+            border: 1px solid var(--gm-border); border-radius: 10px; padding: 10px 14px;
+        }
+        .favorite-item-info { font-size: 0.85rem; }
+        .favorite-item-info strong { display: block; font-size: 0.95rem; color: var(--gm-dark); }
+        .favorite-item-actions { display: flex; gap: 8px; align-items: center; }
+        .favorite-item-actions a { font-size: 0.8rem; color: var(--gm-blue); text-decoration: none; }
+        .favorite-remove-btn { background: none; border: none; color: var(--gm-red); cursor: pointer; font-size: 1rem; }
+        .favorites-empty { text-align: center; color: var(--gm-gray); padding: 30px 0; }
+
+        /* Fichas — fotos grandes con insignias flotantes (valoración/distancia), tarjeta
+           que se eleva al pasar el ratón, para un aire más de app de descubrimiento que
+           de panel de administración. */
+        .venues-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 22px; }
+        .venue-card {
+            background: var(--gm-card-bg); border: 1px solid var(--gm-border); border-radius: 18px;
+            display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .venue-card:hover { transform: translateY(-4px); box-shadow: 0 14px 28px rgba(0,0,0,0.14); }
+        .gm-photo { width: 100%; height: 200px; background-color: var(--gm-hover-bg); background-size: cover; background-position: center; position: relative; }
+        .venue-card-badges { position: absolute; top: 12px; left: 12px; right: 12px; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+        .venue-badge {
+            background: rgba(255,255,255,0.92); color: #2B241E; font-size: 0.78rem; font-weight: 600;
+            padding: 5px 10px; border-radius: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.18);
+            display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;
+        }
+        .venue-badge-rating { color: #7A5B00; }
+        .venue-badge-distance { color: var(--gm-blue-hover); }
+        .venue-body { padding: 16px 18px; display: flex; flex-direction: column; flex-grow: 1; }
+        .gm-title { font-family: 'Poppins', sans-serif; font-size: 1.2rem; font-weight: 600; color: var(--gm-dark); margin-bottom: 6px; line-height: 1.25; }
+        .gm-rating { font-size: 0.85rem; color: var(--gm-gray); margin-bottom: 10px; }
+        .gm-address { font-size: 0.85rem; color: var(--gm-gray); margin-bottom: 12px; display: flex; align-items: flex-start; gap: 8px; }
+        .gm-address svg { width: 16px; height: 16px; fill: var(--gm-gray); flex-shrink: 0; margin-top: 2px; }
+
+        .venue-footer { display: flex; gap: 10px; padding: 0 18px 18px 18px; }
+        .gm-btn {
+            flex: 1; text-align: center; padding: 9px 12px; border-radius: 20px; font-size: 0.85rem;
+            font-weight: 600; text-decoration: none; display: inline-flex; justify-content: center; align-items: center; border: 1px solid var(--gm-border); transition: background-color 0.2s;
+        }
+        .btn-directions { background-color: var(--gm-blue); color: white; border: none; }
+        .btn-directions:hover { background-color: var(--gm-blue-hover); }
+        .btn-outline { background-color: var(--gm-card-bg); color: var(--gm-blue); }
+        .btn-outline:hover { background-color: var(--gm-hover-bg); }
+
+        /* Paginación Numérica Interactiva */
+        .pagination-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            margin: 30px 0;
+        }
+        .btn-page {
+            background-color: var(--gm-card-bg);
+            border: 1px solid var(--gm-border);
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: 500;
+            color: var(--gm-blue);
+            cursor: pointer;
+            box-shadow: 0 1px 2px rgba(60,64,67,0.1);
+            transition: background-color 0.2s;
+        }
+        .btn-page:hover:not(:disabled) { background-color: var(--gm-hover-bg); }
+        .btn-page:disabled { color: var(--gm-gray); background-color: var(--gm-hover-bg); cursor: not-allowed; border-color: var(--gm-map-placeholder); box-shadow: none; }
+        
+        .page-indicator {
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: var(--gm-dark);
+        }
+
+        #loader { text-align: center; padding: 40px; color: var(--gm-gray); font-size: 1.1rem; display: none; grid-column: 1 / -1; }
+
+        /* Botón y diálogo de configuración de API Keys: ahora solo icono, en la esquina,
+           junto al de tema, para que no compita visualmente con el título. */
+        .header-corner-actions { position: absolute; top: 0; right: 0; display: flex; gap: 8px; }
+        .btn-settings, .btn-theme-toggle {
+            background-color: var(--gm-card-bg); color: var(--gm-dark); border: 1px solid var(--gm-border);
+            border-radius: 20px; width: 38px; height: 38px; font-size: 1.1rem;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+        }
+        .btn-settings:hover, .btn-theme-toggle:hover { background-color: var(--gm-hover-bg); }
+        /* Verde en cuanto hay una clave de Maps guardada (válida o no) — para saber a
+           primera vista si hay algo metido, sin tener que abrir el diálogo. */
+        .btn-settings.has-key { background-color: var(--gm-green); border-color: var(--gm-green); }
+        .btn-settings.has-key:hover { background-color: var(--gm-green-hover); border-color: var(--gm-green-hover); }
+
+        dialog.apikey-dialog {
+            border: none; border-radius: 12px; padding: 24px; max-width: 480px; width: 90vw;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+        }
+        dialog.apikey-dialog::backdrop { background: rgba(0,0,0,0.5); }
+        .apikey-dialog h2 { font-size: 1.2rem; margin-bottom: 8px; }
+        .apikey-intro { font-size: 0.85rem; color: var(--gm-gray); margin-bottom: 16px; }
+
+        details.apikey-field { border: 1px solid var(--gm-border); border-radius: 8px; margin-bottom: 12px; overflow: hidden; }
+        details.apikey-field summary {
+            padding: 12px 14px; cursor: pointer; font-weight: 500; font-size: 0.9rem; list-style: none;
+            display: flex; justify-content: space-between; align-items: center; gap: 8px;
+        }
+        details.apikey-field summary::-webkit-details-marker { display: none; }
+        details.apikey-field summary::after { content: "▼"; font-size: 0.7rem; color: var(--gm-gray); }
+        details.apikey-field[open] summary::after { content: "▲"; }
+        .apikey-status { font-size: 0.75rem; color: var(--gm-gray); font-weight: 400; }
+
+        .apikey-field-body { padding: 0 14px 14px 14px; display: flex; flex-direction: column; gap: 8px; }
+        .apikey-field-body label { font-size: 0.8rem; color: var(--gm-gray); font-weight: 500; }
+        .apikey-field-body input, .apikey-field-body select {
+            padding: 10px 12px; border: 1px solid var(--gm-border); border-radius: 6px; font-size: 0.9rem;
+        }
+        .apikey-toggle-visibility {
+            align-self: flex-start; background: none; border: none; color: var(--gm-blue);
+            font-size: 0.8rem; cursor: pointer; padding: 2px 0;
+        }
+        .apikey-help { font-size: 0.75rem; color: var(--gm-gray); margin: 0; }
+        /* Enmascara el texto como si fuera type="password" pero sin serlo de verdad, para
+           que Chrome no ofrezca "guardar contraseña" (eso pasa con cualquier input
+           type="password", incluso si luego lo cancelas cada vez). */
+        .apikey-field-body input.masked { -webkit-text-security: disc; }
+
+        .apikey-remember { display: flex; align-items: flex-start; gap: 8px; font-size: 0.82rem; color: var(--gm-dark); margin: 14px 0; cursor: pointer; }
+
+        .apikey-dialog-actions { display: flex; gap: 10px; justify-content: flex-end; }
+        .btn-outline-dialog { background: var(--gm-card-bg); color: var(--gm-gray); border: 1px solid var(--gm-border); }
+        .btn-outline-dialog:hover { background: var(--gm-hover-bg); }
+
+        /* Toggle de ubicación */
+        .location-toggle {
+            display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: var(--gm-gray);
+            margin-top: 10px; cursor: pointer;
+        }
+
+        /* Panel de IA */
+        /* Tarjeta flotante de búsqueda por IA: la principal forma de usar la app, así que
+           se le da el sitio más destacado, encima del borde de la banda de color. */
+        .ai-panel {
+            background: var(--gm-card-bg); border: none; border-radius: 22px;
+            box-shadow: 0 16px 40px rgba(0,0,0,0.18); padding: 22px;
+        }
+        .ai-panel-title { font-size: 1.05rem; margin-bottom: 12px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
+        .ai-input-row { display: flex; gap: 10px; align-items: flex-start; }
+        .ai-input-row textarea {
+            flex-grow: 1; padding: 12px 16px; font-size: 0.95rem; border: 1px solid var(--gm-border);
+            border-radius: 8px; outline: none; resize: vertical; font-family: inherit; transition: border-color 0.2s;
+        }
+        .ai-input-row textarea:focus { border-color: var(--gm-blue); }
+        .ai-input-buttons { display: flex; flex-direction: column; gap: 8px; }
+        .btn-mic {
+            background-color: var(--gm-card-bg); border: 1px solid var(--gm-border); border-radius: 8px;
+            font-size: 1.1rem; width: 42px; height: 42px; cursor: pointer; transition: background-color 0.2s, border-color 0.2s;
+        }
+        .btn-mic:hover { background-color: var(--gm-hover-bg); }
+        .btn-mic.listening { background-color: var(--gm-red-bg); border-color: var(--gm-red); animation: mic-pulse 1s infinite; }
+        @keyframes mic-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .ai-status { font-size: 0.85rem; color: var(--gm-gray); margin-top: 8px; min-height: 1.2em; }
+        .ai-status.ai-error { color: var(--gm-red); }
+    </style>
+</head>
+<body>
+
+    <header class="hero">
+        <div class="hero-top">
+            <div class="hero-titles">
+                <h1>Antojo</h1>
+                <p>Encuentra tu próximo sitio favorito, cerca de ti.</p>
+            </div>
+            <div class="header-corner-actions">
+                <button class="btn-settings" onclick="openApiKeyDialog()" title="Configurar API Keys">⚙️</button>
+                <button class="btn-theme-toggle" onclick="toggleTheme()" title="Cambiar tema claro/oscuro" id="themeToggleBtn">🌙</button>
+            </div>
+        </div>
+    </header>
+
+    <div class="hero-search-wrap">
+        <!-- Panel de búsqueda por IA -->
+        <section class="filters-panel ai-panel">
+            <h2 class="ai-panel-title">🤖 Pregunta a la IA <span class="apikey-status">(ej: "quiero tapas cerca de mí", "comida china en Alcalá de Henares")</span></h2>
+            <div class="ai-input-row">
+                <textarea id="aiQueryInput" rows="2" placeholder='Escribe o dicta lo que te apetece comer y dónde, por ejemplo: "unas buenas tapas cerca de mí" o "comida china en Alcalá de Henares"'></textarea>
+                <div class="ai-input-buttons">
+                    <button type="button" class="btn-mic" id="aiMicBtn" onclick="toggleMic()" title="Dictar por voz">🎤</button>
+                    <button type="button" class="btn-action" onclick="runAiSearch()">Preguntar</button>
+                </div>
+            </div>
+            <p class="ai-status" id="aiStatus"></p>
+        </section>
+    </div>
+
+    <!-- Diálogo de configuración: claves guardadas solo en este navegador (localStorage/sessionStorage),
+         nunca se envían a ningún servidor propio del proyecto. -->
+    <dialog id="apiKeyDialog" class="apikey-dialog">
+        <h2>Configuración de claves API</h2>
+        <p class="apikey-intro">Estas claves se guardan solo en tu navegador y se usan directamente contra Google (y, en el futuro, contra el proveedor de IA que elijas). Uso personal, sin backend propio.</p>
+
+        <details class="apikey-field" id="detailsMapsKey">
+            <summary>🗺️ Google Maps <span class="apikey-status">(obligatoria)</span></summary>
+            <div class="apikey-field-body">
+                <label for="mapsApiKeyInput">Clave de Google Maps</label>
+                <input type="text" id="mapsApiKeyInput" class="masked" placeholder="AIza..." autocomplete="off" spellcheck="false">
+                <button type="button" class="apikey-toggle-visibility" onclick="toggleKeyVisibility('mapsApiKeyInput', this)">👁️ Mostrar</button>
+                <p class="apikey-help">Necesaria para que el directorio funcione. Debe tener habilitadas "Maps JavaScript API" y "Places API (New)" en Google Cloud Console, y estar restringida a tu dominio.</p>
+            </div>
+        </details>
+
+        <details class="apikey-field" id="detailsAiKey">
+            <summary>🤖 Clave de IA <span class="apikey-status">(opcional, para funciones futuras)</span></summary>
+            <div class="apikey-field-body">
+                <label for="aiProviderSelect">Proveedor</label>
+                <select id="aiProviderSelect">
+                    <option value="gemini">Google Gemini</option>
+                    <option value="openai">OpenAI</option>
+                    <option value="other">Otro</option>
+                </select>
+                <label for="aiApiKeyInput">Clave de API</label>
+                <input type="text" id="aiApiKeyInput" class="masked" placeholder="Clave del proveedor de IA elegido" autocomplete="off" spellcheck="false">
+                <button type="button" class="apikey-toggle-visibility" onclick="toggleKeyVisibility('aiApiKeyInput', this)">👁️ Mostrar</button>
+                <p class="apikey-help">De momento solo se guarda: todavía no hay ninguna función que la use en el directorio.</p>
+            </div>
+        </details>
+
+        <label class="apikey-remember">
+            <input type="checkbox" id="rememberKeysCheckbox">
+            Recordar estas claves en este navegador (localStorage). Si lo dejas sin marcar, solo se recuerdan mientras esta pestaña siga abierta.
+        </label>
+
+        <div class="apikey-dialog-actions">
+            <button type="button" class="btn-action btn-outline-dialog" onclick="closeApiKeyDialog()">Cancelar</button>
+            <button type="button" class="btn-action" onclick="saveApiKeys()">Guardar y continuar</button>
+        </div>
+    </dialog>
+
+    <main class="container">
+        <!-- Mapa General API de Google Maps con Botón de Ubicación -->
+        <section class="global-map-section">
+            <h2>Mapa de Resultados <span id="mapCounterBadge" style="font-size:0.75rem; background:var(--gm-blue-bg); color:var(--gm-blue); padding:2px 8px; border-radius:12px;">Esperando datos...</span></h2>
+            <button class="btn-geolocation" onclick="centerOnUserLocation()" title="Centrar mapa en mi posición actual">
+                <svg viewBox="0 0 24 24"><path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3c-.46-4.17-3.77-7.48-7.94-7.94V1h-2v2.06C6.83 3.52 3.52 6.83 3.06 11H1v2h2.06c.46 4.17 3.77 7.48 7.94 7.94V23h2v-2.06c4.17-.46 7.48-3.77 7.94-7.94H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>
+                Centrar en mi ubicación
+            </button>
+            <div id="globalMap"></div>
+            <label class="location-toggle">
+                <input type="checkbox" id="useLocationCheckbox" checked onchange="onUseLocationToggle()">
+                Usar mi ubicación GPS (se pide una sola vez; desmárcalo si prefieres buscar solo por localidad)
+            </label>
+        </section>
+
+        <!-- Panel de Filtros: chips/píldoras siempre visibles, nada de desplegables tipo
+             formulario -->
+        <section class="filters-panel">
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Buscar por nombre o calle (ej: Asador, Pizzería, Bar)...">
+                <button class="btn-action" onclick="startNewSearch()">Buscar</button>
+                <button class="btn-action btn-sync" onclick="forceDataSync()" title="Recargar datos de Google">Actualizar Datos</button>
+            </div>
+
+            <div class="chip-group">
+                <span class="chip-group-label">Cercanía</span>
+                <div class="chip-row" id="radiusOptions">
+                    <label class="chip"><input type="radio" name="radiusOption" value="" checked onchange="handleRadiusChange()"><span>Sin límite</span></label>
+                    <label class="chip"><input type="radio" name="radiusOption" value="300" onchange="handleRadiusChange()"><span>≤300 m</span></label>
+                    <label class="chip"><input type="radio" name="radiusOption" value="500" onchange="handleRadiusChange()"><span>≤500 m</span></label>
+                    <label class="chip"><input type="radio" name="radiusOption" value="1000" onchange="handleRadiusChange()"><span>≤1 km</span></label>
+                    <label class="chip"><input type="radio" name="radiusOption" value="2000" onchange="handleRadiusChange()"><span>≤2 km</span></label>
+                    <label class="chip"><input type="radio" name="radiusOption" value="5000" onchange="handleRadiusChange()"><span>≤5 km</span></label>
+                </div>
+            </div>
+
+            <div class="chip-group">
+                <span class="chip-group-label">Tipo de local</span>
+                <div class="chip-row" id="typeCheckboxes">
+                    <label class="chip"><input type="checkbox" value="restaurant" onchange="startNewSearch()"><span>Restaurante</span></label>
+                    <label class="chip"><input type="checkbox" value="bar" onchange="startNewSearch()"><span>Bar / Gastrobar</span></label>
+                    <label class="chip"><input type="checkbox" value="cafe" onchange="startNewSearch()"><span>Cafetería</span></label>
+                </div>
+            </div>
+
+            <div class="chip-group">
+                <span class="chip-group-label">Estilo / Cocina</span>
+                <div class="chip-row" id="cuisineCheckboxes">
+                    <label class="chip"><input type="checkbox" value="Mediterránea" onchange="startNewSearch()"><span>Mediterránea</span></label>
+                    <label class="chip"><input type="checkbox" value="Americana" onchange="startNewSearch()"><span>Americana / Burger</span></label>
+                    <label class="chip"><input type="checkbox" value="Italiana" onchange="startNewSearch()"><span>Italiana / Pizzería</span></label>
+                    <label class="chip"><input type="checkbox" value="Asiática" onchange="startNewSearch()"><span>Asiática / Sushi</span></label>
+                    <label class="chip"><input type="checkbox" value="Tapas" onchange="startNewSearch()"><span>Tapas / Raciones</span></label>
+                </div>
+            </div>
+
+            <div class="chip-group">
+                <span class="chip-group-label">Precio</span>
+                <div class="chip-row" id="priceCheckboxes">
+                    <label class="chip"><input type="checkbox" value="1" onchange="processAndRenderCurrentPage()"><span>€ Económico</span></label>
+                    <label class="chip"><input type="checkbox" value="2" onchange="processAndRenderCurrentPage()"><span>€€ Moderado</span></label>
+                    <label class="chip"><input type="checkbox" value="3" onchange="processAndRenderCurrentPage()"><span>€€€ Elevado</span></label>
+                </div>
+            </div>
+
+            <div class="chip-group">
+                <span class="chip-group-label">Valoración mínima</span>
+                <div class="chip-row" id="ratingCheckboxes">
+                    <label class="chip"><input type="checkbox" value="3.5" onchange="processAndRenderCurrentPage()"><span>★ 3.5+</span></label>
+                    <label class="chip"><input type="checkbox" value="4.0" onchange="processAndRenderCurrentPage()"><span>★ 4.0+</span></label>
+                    <label class="chip"><input type="checkbox" value="4.5" onchange="processAndRenderCurrentPage()"><span>★ 4.5+</span></label>
+                </div>
+            </div>
+        </section>
+
+        <div class="results-info">
+            <span id="resultsCount">Esperando realizar búsqueda...</span>
+            <div class="results-info-right">
+                <div class="view-toggle">
+                    <button type="button" class="view-toggle-btn active" data-mode="grid" onclick="setViewMode('grid')">▦ Rejilla</button>
+                    <button type="button" class="view-toggle-btn" data-mode="swipe" onclick="setViewMode('swipe')">🔀 Descubrir</button>
+                </div>
+                <button type="button" class="btn-favorites" onclick="openFavoritesDialog()" title="Ver favoritos guardados">❤️ <span id="favoritesCount">0</span></button>
+            </div>
+        </div>
+
+        <section id="venuesContainer" class="venues-grid">
+            <div id="loader">Consultando a Google Maps... Por favor, espera.</div>
+        </section>
+
+        <!-- Paginación Numérica Interactiva Exacta -->
+        <div class="pagination-container" id="paginationControls" style="display: none;">
+            <button class="btn-page" id="prevPageBtn" onclick="changePage(-1)">Retroceder</button>
+            <span class="page-indicator" id="pageIndicator">Página 1 de 1</span>
+            <button class="btn-page" id="nextPageBtn" onclick="changePage(1)">Siguiente</button>
+        </div>
+
+        <!-- Vista de descubrimiento tipo swipe -->
+        <div id="swipeContainer" class="swipe-container" style="display:none;"></div>
+    </main>
+
+    <!-- Diálogo de favoritos guardados -->
+    <dialog id="favoritesDialog" class="apikey-dialog">
+        <h2>❤️ Tus favoritos</h2>
+        <div id="favoritesList" class="favorites-list"></div>
+        <div class="apikey-dialog-actions">
+            <button type="button" class="btn-action btn-outline-dialog" onclick="document.getElementById('favoritesDialog').close()">Cerrar</button>
+        </div>
+    </dialog>
+
+    <!-- La API de Google Maps ya NO se carga con una clave fija en el HTML: se inyecta en
+         tiempo de ejecución con la clave que el usuario introduce en el diálogo de configuración
+         (ver loadGoogleMapsScript más abajo). -->
+
+    <script>
+        let map;
+        let googleMarkers = [];
+        let infoWindow;
+        let rawPlaces = [];
+        let filteredPlaces = [];
+        let currentPageIndex = 0;
+        const RESULTS_PER_PAGE = 6;
+        let userPosition = null;
+        let userLocationMarker = null;
+
+        const DEFAULT_LOCATION = { lat: 40.4554, lng: -3.4697 };
+
+        // La API nueva devuelve priceLevel como texto (FREE/INEXPENSIVE/MODERATE/EXPENSIVE/VERY_EXPENSIVE)
+        // en vez del antiguo price_level numérico 1-4.
+        const PRICE_LEVEL_MAP = { FREE: 0, INEXPENSIVE: 1, MODERATE: 2, EXPENSIVE: 3, VERY_EXPENSIVE: 4 };
+        function priceLevelToNumber(priceLevel) {
+            return Object.prototype.hasOwnProperty.call(PRICE_LEVEL_MAP, priceLevel) ? PRICE_LEVEL_MAP[priceLevel] : null;
+        }
+        // Agrupa EXPENSIVE y VERY_EXPENSIVE en el mismo cubo "3" para que coincida
+        // con la etiqueta del filtro "Elevado (€€€/€€€€)".
+        function priceLevelToFilterBucket(priceLevel) {
+            const n = priceLevelToNumber(priceLevel);
+            if (n === null || n === 0) return null;
+            return n >= 3 ? 3 : n;
+        }
+
+        // Evita inyectar HTML/JS desde datos que vienen de fuera (nombre o dirección de un
+        // local en Google Maps), antes de meterlos en innerHTML.
+        function escapeHtml(value) {
+            if (value === null || value === undefined) return '';
+            const div = document.createElement('div');
+            div.textContent = String(value);
+            return div.innerHTML;
+        }
+
+        // --- Gestión de claves API (Google Maps + IA reservada para el futuro) ---
+        // Las claves solo viven en este navegador: en localStorage si el usuario marca
+        // "recordar", o en sessionStorage (se borra al cerrar la pestaña) si no.
+        const LS_MAPS_KEY = 'rb_mapsApiKey';
+        const LS_AI_KEY = 'rb_aiApiKey';
+        const LS_AI_PROVIDER = 'rb_aiProvider';
+        const LS_REMEMBER = 'rb_rememberKeys';
+        const LS_USE_LOCATION = 'rb_useLocation';
+        const LS_THEME = 'rb_theme';
+
+        // Tema: 'light' | 'dark' fuerzan el modo vía atributo data-theme; si no hay nada
+        // guardado, el CSS ya sigue el tema del sistema (prefers-color-scheme) por su cuenta.
+        function applyStoredTheme() {
+            const stored = localStorage.getItem(LS_THEME);
+            if (stored === 'light' || stored === 'dark') {
+                document.documentElement.setAttribute('data-theme', stored);
+            }
+            updateThemeToggleIcon();
+        }
+        function updateThemeToggleIcon() {
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark'
+                || (!document.documentElement.getAttribute('data-theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            document.getElementById('themeToggleBtn').textContent = isDark ? '☀️' : '🌙';
+        }
+        function toggleTheme() {
+            const current = document.documentElement.getAttribute('data-theme');
+            const isDarkNow = current === 'dark'
+                || (!current && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            const next = isDarkNow ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', next);
+            localStorage.setItem(LS_THEME, next);
+            updateThemeToggleIcon();
+        }
+        applyStoredTheme();
+        const SS_CACHED_POSITION = 'rb_cachedPosition';
+
+        // La posición se guarda en sessionStorage para que, aunque la página se recargue
+        // (p.ej. al guardar una clave de API nueva), no haga falta volver a pedirle
+        // permiso/ubicación al navegador — se reutiliza mientras dure esta pestaña.
+        function getCachedPosition() {
+            try {
+                const raw = sessionStorage.getItem(SS_CACHED_POSITION);
+                return raw ? JSON.parse(raw) : null;
+            } catch (e) {
+                return null;
+            }
+        }
+        function cachePosition(position) {
+            sessionStorage.setItem(SS_CACHED_POSITION, JSON.stringify(position));
+        }
+
+        function getStoredValue(key) {
+            return localStorage.getItem(key) || sessionStorage.getItem(key) || '';
+        }
+
+        function updateSettingsIcon() {
+            document.querySelector('.btn-settings').classList.toggle('has-key', !!getStoredValue(LS_MAPS_KEY));
+        }
+
+        // --- Caché de búsquedas (ahorra peticiones facturables al repetir la misma
+        // búsqueda en poco tiempo, p.ej. al recargar varias veces mientras se prueba) ---
+        const SEARCH_CACHE_PREFIX = 'rb_searchCache_';
+        const SEARCH_CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutos
+
+        function buildSearchCacheKey(textQuery, skipLocationBias) {
+            if (skipLocationBias) return `${SEARCH_CACHE_PREFIX}nobias|${textQuery}`;
+            // Redondeado a ~100 m para que un ligero temblor del GPS no invalide el caché.
+            const lat = Math.round(userPosition.lat * 1000) / 1000;
+            const lng = Math.round(userPosition.lng * 1000) / 1000;
+            return `${SEARCH_CACHE_PREFIX}bias:${lat},${lng}|${textQuery}`;
+        }
+
+        function readSearchCache(key) {
+            try {
+                const raw = sessionStorage.getItem(key);
+                if (!raw) return null;
+                const entry = JSON.parse(raw);
+                if (Date.now() - entry.savedAt > SEARCH_CACHE_TTL_MS) {
+                    sessionStorage.removeItem(key);
+                    return null;
+                }
+                return entry.places;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function writeSearchCache(key, plainPlaces) {
+            try {
+                sessionStorage.setItem(key, JSON.stringify({ savedAt: Date.now(), places: plainPlaces }));
+            } catch (e) {
+                // sessionStorage lleno o similar: no pasa nada, simplemente no se cachea.
+            }
+        }
+
+        // Convierte un Place "vivo" (con getters del prototipo y un Photo con getURI) en un
+        // objeto plano y serializable, resolviendo la foto a una URL fija de una vez.
+        function toPlainPlace(place) {
+            const loc = place.location;
+            const lat = typeof loc.lat === 'function' ? loc.lat() : loc.lat;
+            const lng = typeof loc.lng === 'function' ? loc.lng() : loc.lng;
+            let photoUrl = null;
+            if (place.photos && place.photos.length > 0) {
+                photoUrl = place.photos[0].getURI({ maxWidth: 500, maxHeight: 400 });
+            }
+            return {
+                id: place.id,
+                displayName: place.displayName,
+                formattedAddress: place.formattedAddress,
+                rating: place.rating || null,
+                userRatingCount: place.userRatingCount || null,
+                priceLevel: place.priceLevel || null,
+                location: { lat, lng },
+                photoUrl
+            };
+        }
+
+        // Devuelve la URL de foto tanto si viene de un Place vivo (place.photos) como de
+        // uno ya cacheado/plano (place.photoUrl).
+        function getPlacePhotoUrl(place, maxWidth, maxHeight) {
+            if (place.photos && place.photos.length > 0) {
+                return place.photos[0].getURI({ maxWidth, maxHeight });
+            }
+            return place.photoUrl || '';
+        }
+
+        // --- Favoritos: solo texto (nombre, direccion, rating, precio, id), sin foto ---
+        // Las URLs de fotos de Google caducan; guardarlas rompería los favoritos con el
+        // tiempo. Para ver la foto real, el enlace "Ver en Maps" siempre funciona.
+        const LS_FAVORITES = 'rb_favorites';
+        function getFavorites() {
+            try { return JSON.parse(localStorage.getItem(LS_FAVORITES) || '[]'); } catch (e) { return []; }
+        }
+        function isFavorite(placeId) {
+            return getFavorites().some(f => f.id === placeId);
+        }
+        function addFavorite(place) {
+            const list = getFavorites();
+            if (list.some(f => f.id === place.id)) return;
+            list.push({
+                id: place.id,
+                displayName: place.displayName,
+                formattedAddress: place.formattedAddress,
+                rating: place.rating || null,
+                userRatingCount: place.userRatingCount || null,
+                priceLevel: place.priceLevel || null,
+                savedAt: Date.now()
+            });
+            localStorage.setItem(LS_FAVORITES, JSON.stringify(list));
+            updateFavoritesCount();
+        }
+        function removeFavorite(placeId) {
+            localStorage.setItem(LS_FAVORITES, JSON.stringify(getFavorites().filter(f => f.id !== placeId)));
+            updateFavoritesCount();
+            renderFavoritesList();
+        }
+        function updateFavoritesCount() {
+            document.getElementById('favoritesCount').textContent = getFavorites().length;
+        }
+        function openFavoritesDialog() {
+            renderFavoritesList();
+            document.getElementById('favoritesDialog').showModal();
+        }
+        function renderFavoritesList() {
+            const list = getFavorites();
+            const container = document.getElementById('favoritesList');
+            if (list.length === 0) {
+                container.innerHTML = '<div class="favorites-empty">Todavía no has guardado ningún sitio. Deslízalo a la derecha (o pulsa ❤️) en la vista "Descubrir" para guardarlo.</div>';
+                return;
+            }
+            container.innerHTML = list.slice().reverse().map(f => {
+                const priceLevelNum = priceLevelToNumber(f.priceLevel);
+                const priceStr = priceLevelNum ? ' · ' + '€'.repeat(priceLevelNum) : '';
+                const ratingStr = f.rating ? `★ ${f.rating.toFixed(1)}` : 'Sin valoración';
+                const mapUrl = `https://www.google.com/maps/place/?q=place_id:${encodeURIComponent(f.id)}`;
+                const safeId = f.id.replace(/'/g, "\\'");
+                return `
+                    <div class="favorite-item">
+                        <div class="favorite-item-info">
+                            <strong>${escapeHtml(f.displayName)}</strong>
+                            ${ratingStr}${priceStr}<br>
+                            <span style="color:var(--gm-gray);">${escapeHtml(f.formattedAddress || '')}</span>
+                        </div>
+                        <div class="favorite-item-actions">
+                            <a href="${mapUrl}" target="_blank">Ver en Maps</a>
+                            <button type="button" class="favorite-remove-btn" onclick="removeFavorite('${safeId}')" title="Quitar de favoritos">✕</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        updateFavoritesCount();
+
+        // --- Vista de descubrimiento tipo swipe ---
+        let viewMode = 'grid';
+        let swipeIndex = 0;
+
+        function setViewMode(mode) {
+            viewMode = mode;
+            document.querySelectorAll('.view-toggle-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+            document.getElementById('venuesContainer').style.display = mode === 'grid' ? '' : 'none';
+            document.getElementById('swipeContainer').style.display = mode === 'swipe' ? 'flex' : 'none';
+            document.getElementById('paginationControls').style.display = (mode === 'grid' && filteredPlaces.length > 0) ? 'flex' : 'none';
+            if (mode === 'swipe') {
+                swipeIndex = 0;
+                renderSwipeCard();
+            }
+        }
+
+        function renderSwipeCard() {
+            const container = document.getElementById('swipeContainer');
+            if (filteredPlaces.length === 0) {
+                container.innerHTML = '<div class="swipe-empty">Todavía no hay resultados que explorar. Haz una búsqueda primero.</div>';
+                return;
+            }
+            if (swipeIndex >= filteredPlaces.length) {
+                container.innerHTML = '<div class="swipe-empty">Has visto todos los locales de esta búsqueda 🎉<br>Prueba a cambiar de filtros o busca otra cosa.</div>';
+                return;
+            }
+
+            const place = filteredPlaces[swipeIndex];
+            const photoUrl = getPlacePhotoUrl(place, 500, 400);
+
+            const ratingBadge = place.rating ? `<span class="venue-badge venue-badge-rating">★ ${place.rating.toFixed(1)}</span>` : '';
+            const distText = place.calculatedDistance < 1000
+                ? `${Math.round(place.calculatedDistance)} m`
+                : `${(place.calculatedDistance / 1000).toFixed(1)} km`;
+            const distanceBadge = `<span class="venue-badge venue-badge-distance">📍 ${distText}</span>`;
+
+            const photoHtml = `
+                <div class="swipe-card-photo" style="${photoUrl ? `background-image:url('${photoUrl}');` : ''}">
+                    ${!photoUrl ? '<div style="height:100%; display:flex; align-items:center; justify-content:center; color:var(--gm-photo-empty-text);">Sin imagen</div>' : ''}
+                    <div class="venue-card-badges">${ratingBadge}${distanceBadge}</div>
+                </div>
+            `;
+
+            const totalReviews = place.userRatingCount ? `(${place.userRatingCount} reseñas)` : 'Sin valoración';
+            const priceLevelNum = priceLevelToNumber(place.priceLevel);
+            const priceStr = priceLevelNum ? ' · ' + '€'.repeat(priceLevelNum) : '';
+
+            container.innerHTML = `
+                <div class="swipe-progress">${swipeIndex + 1} de ${filteredPlaces.length}</div>
+                <div class="swipe-card" id="activeSwipeCard">
+                    ${photoHtml}
+                    <div class="swipe-card-body">
+                        <div class="swipe-card-title">${escapeHtml(place.displayName)}</div>
+                        <div class="gm-rating">${totalReviews}${priceStr}</div>
+                        <div class="swipe-card-address">${escapeHtml(place.formattedAddress)}</div>
+                    </div>
+                </div>
+                <div class="swipe-actions">
+                    <button type="button" class="swipe-btn swipe-btn-discard" onclick="swipeDecision(false)" title="Descartar">✕</button>
+                    <button type="button" class="swipe-btn swipe-btn-like" onclick="swipeDecision(true)" title="Guardar en favoritos">❤️</button>
+                </div>
+            `;
+
+            attachSwipeGesture(document.getElementById('activeSwipeCard'));
+        }
+
+        function swipeDecision(liked) {
+            const place = filteredPlaces[swipeIndex];
+            if (liked && place) addFavorite(place);
+            swipeIndex++;
+            renderSwipeCard();
+        }
+
+        // Arrastre con Pointer Events (unifica ratón y táctil): mueve/rota la tarjeta con
+        // el dedo/ratón, y si se suelta pasado el umbral, decide como un swipe de verdad;
+        // si no, vuelve al centro.
+        function attachSwipeGesture(card) {
+            let startX = 0, currentX = 0, dragging = false;
+
+            card.addEventListener('pointerdown', (e) => {
+                dragging = true;
+                startX = e.clientX;
+                card.classList.add('dragging');
+                card.setPointerCapture(e.pointerId);
+            });
+            card.addEventListener('pointermove', (e) => {
+                if (!dragging) return;
+                currentX = e.clientX - startX;
+                card.style.transform = `translateX(${currentX}px) rotate(${currentX / 20}deg)`;
+            });
+            const endDrag = () => {
+                if (!dragging) return;
+                dragging = false;
+                card.classList.remove('dragging');
+                const threshold = 100;
+                if (currentX > threshold) {
+                    card.style.transform = 'translateX(600px) rotate(25deg)';
+                    card.style.opacity = '0';
+                    setTimeout(() => swipeDecision(true), 200);
+                } else if (currentX < -threshold) {
+                    card.style.transform = 'translateX(-600px) rotate(-25deg)';
+                    card.style.opacity = '0';
+                    setTimeout(() => swipeDecision(false), 200);
+                } else {
+                    card.style.transform = '';
+                }
+                currentX = 0;
+            };
+            card.addEventListener('pointerup', endDrag);
+            card.addEventListener('pointercancel', endDrag);
+        }
+
+        function openApiKeyDialog() {
+            document.getElementById('mapsApiKeyInput').value = getStoredValue(LS_MAPS_KEY);
+            document.getElementById('aiApiKeyInput').value = getStoredValue(LS_AI_KEY);
+            const provider = getStoredValue(LS_AI_PROVIDER);
+            if (provider) document.getElementById('aiProviderSelect').value = provider;
+            document.getElementById('rememberKeysCheckbox').checked = localStorage.getItem(LS_REMEMBER) === 'true';
+            document.getElementById('apiKeyDialog').showModal();
+        }
+
+        function closeApiKeyDialog() {
+            document.getElementById('apiKeyDialog').close();
+        }
+
+        function toggleKeyVisibility(inputId, btn) {
+            const input = document.getElementById(inputId);
+            const nowMasked = input.classList.toggle('masked');
+            btn.textContent = nowMasked ? '👁️ Mostrar' : '🙈 Ocultar';
+        }
+
+        function saveApiKeys() {
+            const mapsKey = document.getElementById('mapsApiKeyInput').value.trim();
+            const aiKey = document.getElementById('aiApiKeyInput').value.trim();
+            const aiProvider = document.getElementById('aiProviderSelect').value;
+            const remember = document.getElementById('rememberKeysCheckbox').checked;
+
+            if (!mapsKey) {
+                alert('La clave de Google Maps es obligatoria para que el directorio funcione.');
+                return;
+            }
+
+            [LS_MAPS_KEY, LS_AI_KEY, LS_AI_PROVIDER].forEach(k => {
+                localStorage.removeItem(k);
+                sessionStorage.removeItem(k);
+            });
+
+            const store = remember ? localStorage : sessionStorage;
+            store.setItem(LS_MAPS_KEY, mapsKey);
+            if (aiKey) store.setItem(LS_AI_KEY, aiKey);
+            store.setItem(LS_AI_PROVIDER, aiProvider);
+            localStorage.setItem(LS_REMEMBER, remember ? 'true' : 'false');
+
+            updateSettingsIcon();
+            closeApiKeyDialog();
+
+            // Solo recargamos si el script de Maps ya se había pedido antes en esta misma
+            // carga de página (cargarlo dos veces no está soportado y rompe el mapa). La
+            // primera vez (o si aún no había cargado por una clave inválida) lo inyectamos
+            // directamente sin recargar, para no repetir la petición de ubicación al GPS.
+            if (mapsScriptRequested) {
+                location.reload();
+            } else {
+                loadGoogleMapsScript(mapsKey);
+            }
+        }
+
+        let mapsScriptRequested = false;
+        function loadGoogleMapsScript(apiKey) {
+            if (mapsScriptRequested) return;
+            mapsScriptRequested = true;
+
+            const script = document.createElement('script');
+            script.id = 'googleMapsScript';
+            script.async = true;
+            script.defer = true;
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&libraries=places&callback=initMap`;
+            document.head.appendChild(script);
+        }
+
+        // Mensaje común para cualquier problema de clave, venga de gm_authFailure (fallo al
+        // cargar el script) o de un error al llamar a Place.searchByText (la clave carga el
+        // script pero no tiene Places API (New) habilitada, o es directamente inválida).
+        function showApiKeyProblem(detail) {
+            // OJO: mapsScriptRequested NO se resetea aquí a propósito. El script de Maps
+            // ya se inyectó una vez (aunque la clave fallara), y Google no admite cargarlo
+            // dos veces en la misma página — así que un siguiente intento con otra clave
+            // tiene que pasar por saveApiKeys() -> location.reload(), nunca por una segunda
+            // inyección directa del script.
+            document.getElementById('globalMap').innerHTML =
+                `<div style="padding:20px; text-align:center; color:var(--gm-red);">${escapeHtml(detail)} Revisa en Google Cloud Console que tengas habilitadas "Maps JavaScript API" y "Places API (New)", y que las restricciones de dominio incluyan este sitio.<br><br>Pulsa "⚙️ Configurar API Keys" arriba para corregirla.</div>`;
+            document.getElementById('mapCounterBadge').textContent = 'Clave inválida';
+            // Ya NO reabrimos el diálogo automáticamente aquí: si la clave sigue fallando,
+            // esto se dispara en cada carga de página y el diálogo parece "no cerrarse
+            // nunca" (se cierra al guardar, la página recarga, y se reabre solo al momento
+            // por el mismo fallo). El aviso de arriba ya deja claro qué hacer.
+        }
+
+        // Google llama a esta función global si la clave no es válida, le faltan permisos
+        // (Maps JavaScript API / Places API New) o las restricciones de dominio no cuadran.
+        window.gm_authFailure = function () {
+            showApiKeyProblem('La clave de Google Maps no es válida o no tiene permisos suficientes.');
+        };
+
+        function initMap() {
+            userPosition = DEFAULT_LOCATION; 
+            map = new google.maps.Map(document.getElementById('globalMap'), {
+                center: userPosition,
+                zoom: 13,
+                mapTypeControl: false,
+                streetViewControl: false,
+                zoomControl: true,
+                zoomControlOptions: {
+                    position: google.maps.ControlPosition.RIGHT_TOP
+                }
+            });
+            infoWindow = new google.maps.InfoWindow();
+
+            const useLocationCheckbox = document.getElementById('useLocationCheckbox');
+            const useLocation = localStorage.getItem(LS_USE_LOCATION) !== 'false';
+            useLocationCheckbox.checked = useLocation;
+
+            // Ubicación pedida una sola vez por pestaña (no en cada búsqueda ni en cada
+            // recarga provocada por guardar una clave de API): si ya hay una posición en
+            // sessionStorage la reutilizamos directamente, sin volver a llamar al GPS.
+            const cached = useLocation ? getCachedPosition() : null;
+
+            if (cached) {
+                userPosition = cached;
+                map.setCenter(userPosition);
+                map.setZoom(14);
+                userLocationMarker = new google.maps.Marker({
+                    position: userPosition,
+                    map: map,
+                    title: "Tu ubicación actual",
+                    icon: {
+                        path: google.maps.SymbolPath.CIRCLE,
+                        scale: 8,
+                        fillColor: "#E4572E",
+                        fillOpacity: 1,
+                        strokeColor: "#ffffff",
+                        strokeWeight: 2,
+                    }
+                });
+                startNewSearch();
+            } else if (useLocation && navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        userPosition = {
+                            lat: position.coords.latitude,
+                            lng: position.coords.longitude,
+                        };
+                        cachePosition(userPosition);
+                        map.setCenter(userPosition);
+                        map.setZoom(14);
+
+                        userLocationMarker = new google.maps.Marker({
+                            position: userPosition,
+                            map: map,
+                            title: "Tu ubicación actual",
+                            icon: {
+                                path: google.maps.SymbolPath.CIRCLE,
+                                scale: 8,
+                                fillColor: "#E4572E",
+                                fillOpacity: 1,
+                                strokeColor: "#ffffff",
+                                strokeWeight: 2,
+                            }
+                        });
+                        startNewSearch();
+                    },
+                    (error) => {
+                        startNewSearch();
+                    },
+                    { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+                );
+            } else {
+                startNewSearch();
+            }
+        }
+
+        function onUseLocationToggle() {
+            const enabled = document.getElementById('useLocationCheckbox').checked;
+            localStorage.setItem(LS_USE_LOCATION, enabled ? 'true' : 'false');
+            if (!enabled && userLocationMarker) {
+                userLocationMarker.setMap(null);
+                userLocationMarker = null;
+            } else if (enabled) {
+                centerOnUserLocation();
+            }
+        }
+
+        function centerOnUserLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        userPosition = {
+                            lat: position.coords.latitude,
+                            lng: position.coords.longitude,
+                        };
+                        cachePosition(userPosition);
+
+                        if (userLocationMarker) {
+                            userLocationMarker.setMap(null);
+                        }
+
+                        userLocationMarker = new google.maps.Marker({
+                            position: userPosition,
+                            map: map,
+                            title: "Tu ubicación actual",
+                            icon: {
+                                path: google.maps.SymbolPath.CIRCLE,
+                                scale: 8,
+                                fillColor: "#E4572E",
+                                fillOpacity: 1,
+                                strokeColor: "#ffffff",
+                                strokeWeight: 2,
+                            }
+                        });
+
+                        map.setCenter(userPosition);
+                        map.setZoom(15);
+                        startNewSearch(); 
+                    },
+                    (error) => {
+                        alert("No se pudo obtener tu ubicación. Comprueba los permisos en tu navegador.");
+                        console.error(error);
+                    },
+                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                );
+            } else {
+                alert("Tu navegador no soporta geolocalización.");
+            }
+        }
+
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371e3; 
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c; 
+        }
+
+        function toggleDropdown(dropdownId) {
+            const currentDrop = document.getElementById(dropdownId);
+            const isActive = currentDrop.classList.contains('active');
+            document.querySelectorAll('.dropdown-filter').forEach(d => d.classList.remove('active'));
+            if (!isActive) {
+                currentDrop.classList.add('active');
+            }
+        }
+
+        window.addEventListener('click', function(e) {
+            if (!e.target.closest('.dropdown-filter')) {
+                document.querySelectorAll('.dropdown-filter').forEach(d => d.classList.remove('active'));
+            }
+        });
+
+        function resetFilterGroup(containerId, type, callback) {
+            const container = document.getElementById(containerId);
+            if (type === 'radiusOption') {
+                const radios = container.querySelectorAll('input[type="radio"]');
+                if (radios.length > 0) radios[0].checked = true;
+            } else {
+                const checkboxes = container.querySelectorAll('input[type="checkbox"]');
+                checkboxes.forEach(cb => cb.checked = false);
+            }
+            callback();
+        }
+
+        function handleRadiusChange() {
+            document.getElementById('dropRadius').classList.remove('active');
+            processAndRenderCurrentPage();
+        }
+
+        function forceDataSync() {
+            const btn = document.querySelector('.btn-sync');
+            btn.textContent = "Sincronizando...";
+            startNewSearch();
+            setTimeout(() => { btn.textContent = "Actualizar Datos"; }, 800);
+        }
+
+        // --- Búsqueda por IA en lenguaje natural ---
+        // La IA solo traduce la frase del usuario a los mismos parámetros de búsqueda que ya
+        // usan los filtros manuales (tipo, cocina, precio, valoración, texto libre) más una
+        // decisión de si centrar en el GPS del usuario o dejar que Google interprete una
+        // localidad distinta a partir del propio texto. No hay geocoding aparte: Google
+        // Places (New) ya entiende nombres de localidad dentro de textQuery.
+        const AI_SYSTEM_PROMPT = `Eres un asistente que convierte peticiones en español sobre restaurantes y bares en parámetros de búsqueda para Google Places.
+Responde ÚNICAMENTE con JSON válido (sin markdown, sin texto extra), con esta forma exacta:
+{
+  "understood": boolean,         // false si la frase no tiene relación con buscar un sitio para comer/beber, o es demasiado ambigua para buscar algo razonable
+  "clarification": string|null,  // si understood=false, una frase breve en español explicando qué falta o no se entendió; si understood=true, null
+  "textQuery": string,           // texto de búsqueda natural en español para Google Places: tipo de cocina/local + localidad si se menciona una
+  "useCurrentLocation": boolean, // true si hay que centrar en la ubicación GPS del usuario ("cerca de mí"); false si se menciona una localidad distinta a la suya
+  "type": string[],              // subconjunto de ["restaurant","bar","cafe"], vacío si no se menciona
+  "cuisine": string[],           // subconjunto de ["Mediterránea","Americana","Italiana","Asiática","Tapas"], vacío si no se menciona
+  "maxPriceLevel": number|null,  // 1 (económico), 2 (moderado) o 3 (elevado) si se menciona presupuesto, si no null
+  "minRating": number|null       // 3.5, 4.0 o 4.5 si se pide buena valoración, si no null
+}
+No inventes una interpretación forzada si la frase es ambigua o no tiene que ver con comer/beber: en ese caso usa understood=false y explica brevemente en "clarification" qué necesitas saber para poder buscar.
+Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsqueda, así que no hace falta pedir más.`;
+
+        function setAiStatus(text, isError) {
+            const el = document.getElementById('aiStatus');
+            el.textContent = text || '';
+            el.classList.toggle('ai-error', !!isError);
+        }
+
+        async function callGemini(apiKey, userText) {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${encodeURIComponent(apiKey)}`;
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    systemInstruction: { parts: [{ text: AI_SYSTEM_PROMPT }] },
+                    contents: [{ role: 'user', parts: [{ text: userText }] }],
+                    generationConfig: { responseMimeType: 'application/json' }
+                })
+            });
+            if (!res.ok) {
+                const errBody = await res.text();
+                throw new Error(`Gemini (${res.status}): ${errBody.slice(0, 200)}`);
+            }
+            const data = await res.json();
+            const text = data.candidates && data.candidates[0] && data.candidates[0].content
+                && data.candidates[0].content.parts && data.candidates[0].content.parts[0]
+                && data.candidates[0].content.parts[0].text;
+            if (!text) throw new Error('Respuesta de Gemini vacía o inesperada.');
+            return JSON.parse(text);
+        }
+
+        // También usada para el proveedor "other": muchas APIs de terceros son compatibles
+        // con el formato de chat completions de OpenAI.
+        async function callOpenAiCompatible(apiKey, userText) {
+            const res = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                },
+                body: JSON.stringify({
+                    model: 'gpt-4o-mini',
+                    messages: [
+                        { role: 'system', content: AI_SYSTEM_PROMPT },
+                        { role: 'user', content: userText }
+                    ],
+                    response_format: { type: 'json_object' }
+                })
+            });
+            if (!res.ok) {
+                const errBody = await res.text();
+                throw new Error(`OpenAI (${res.status}): ${errBody.slice(0, 200)}`);
+            }
+            const data = await res.json();
+            const text = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+            if (!text) throw new Error('Respuesta de OpenAI vacía o inesperada.');
+            return JSON.parse(text);
+        }
+
+        function applyAiFilters(parsed) {
+            document.querySelectorAll('#typeCheckboxes input[type="checkbox"]').forEach(cb => {
+                cb.checked = Array.isArray(parsed.type) && parsed.type.includes(cb.value);
+            });
+            document.querySelectorAll('#cuisineCheckboxes input[type="checkbox"]').forEach(cb => {
+                cb.checked = Array.isArray(parsed.cuisine) && parsed.cuisine.includes(cb.value);
+            });
+            document.querySelectorAll('#priceCheckboxes input[type="checkbox"]').forEach(cb => {
+                cb.checked = parsed.maxPriceLevel != null && Number(cb.value) <= Number(parsed.maxPriceLevel);
+            });
+            document.querySelectorAll('#ratingCheckboxes input[type="checkbox"]').forEach(cb => {
+                cb.checked = parsed.minRating != null && Number(cb.value) === Number(parsed.minRating);
+            });
+            document.getElementById('searchInput').value = parsed.textQuery || '';
+        }
+
+        async function runAiSearch() {
+            const text = document.getElementById('aiQueryInput').value.trim();
+            if (!text) return;
+
+            const aiKey = getStoredValue(LS_AI_KEY);
+            const provider = getStoredValue(LS_AI_PROVIDER) || 'gemini';
+
+            if (!aiKey) {
+                setAiStatus('Añade tu clave de IA en "⚙️ Configurar API Keys" para usar esta función.', true);
+                openApiKeyDialog();
+                document.getElementById('detailsAiKey').open = true;
+                return;
+            }
+
+            setAiStatus('Pensando...');
+            try {
+                const parsed = provider === 'openai' || provider === 'other'
+                    ? await callOpenAiCompatible(aiKey, text)
+                    : await callGemini(aiKey, text);
+
+                if (parsed.understood === false) {
+                    setAiStatus(parsed.clarification || 'No he entendido bien la petición, ¿puedes reformularla?', true);
+                    return;
+                }
+
+                applyAiFilters(parsed);
+                await startNewSearch({
+                    textQueryOverride: parsed.textQuery,
+                    skipLocationBias: parsed.useCurrentLocation === false
+                });
+                setAiStatus('');
+            } catch (error) {
+                console.error('Error consultando a la IA:', error);
+                setAiStatus('No se pudo interpretar la petición: ' + error.message, true);
+            }
+        }
+
+        // Dictado por voz (Web Speech API): solo disponible en navegadores basados en
+        // Chromium (Chrome, Edge, Android) con conexión https o localhost.
+        let speechRecognition = null;
+        function toggleMic() {
+            const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognitionCtor) {
+                alert('Tu navegador no soporta dictado por voz. Prueba en Chrome o Edge de escritorio o Android.');
+                return;
+            }
+
+            const micBtn = document.getElementById('aiMicBtn');
+
+            if (speechRecognition) {
+                speechRecognition.stop();
+                return;
+            }
+
+            speechRecognition = new SpeechRecognitionCtor();
+            speechRecognition.lang = 'es-ES';
+            speechRecognition.continuous = false;
+            speechRecognition.interimResults = false;
+
+            speechRecognition.onstart = () => micBtn.classList.add('listening');
+            speechRecognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                document.getElementById('aiQueryInput').value = transcript;
+            };
+            speechRecognition.onerror = (event) => {
+                console.error('Error de reconocimiento de voz:', event.error);
+                setAiStatus('No se pudo escuchar el micrófono (' + event.error + ').', true);
+            };
+            speechRecognition.onend = () => {
+                micBtn.classList.remove('listening');
+                speechRecognition = null;
+            };
+
+            speechRecognition.start();
+        }
+
+        // options.textQueryOverride: texto de búsqueda ya construido por la IA (sustituye
+        //   al que se arma normalmente a partir de los checkboxes + el campo de texto).
+        // options.skipLocationBias: true cuando la IA detecta una localidad distinta a la
+        //   del usuario (p.ej. "comida china en Alcalá de Henares" sin estar allí) — así
+        //   Google interpreta la localidad a partir del propio texto en vez de sesgar la
+        //   búsqueda hacia la posición GPS actual.
+        async function startNewSearch(options) {
+            options = options || {};
+            if (!window.google || !google.maps.places || !google.maps.places.Place) return;
+
+            document.getElementById('venuesContainer').innerHTML = '<div id="loader" style="display:block;">Consultando a Google Maps... Por favor, espera.</div>';
+            document.getElementById('paginationControls').style.display = 'none';
+            document.getElementById('resultsCount').textContent = 'Buscando recomendaciones de Maps...';
+
+            clearMarkers();
+            rawPlaces = [];
+            filteredPlaces = [];
+            currentPageIndex = 0;
+
+            let textQuery = options.textQueryOverride;
+            if (!textQuery) {
+                const textInput = document.getElementById('searchInput').value.trim();
+                const selectedTypes = getCheckedValues('typeCheckboxes');
+                const selectedCuisines = getCheckedValues('cuisineCheckboxes');
+
+                let queryParts = [];
+                if (selectedCuisines.length > 0) queryParts.push(selectedCuisines.join(" o "));
+                if (selectedTypes.length > 0) queryParts.push(selectedTypes.join(" "));
+                else if (queryParts.length === 0) queryParts.push("Restaurantes y bares recomendados");
+
+                if (textInput) queryParts.push(textInput);
+                textQuery = queryParts.join(" ");
+            }
+
+            const cacheKey = buildSearchCacheKey(textQuery, options.skipLocationBias);
+            const cached = readSearchCache(cacheKey);
+            if (cached) {
+                handlePlacesResponse(cached);
+                return;
+            }
+
+            // Place.searchByText (Places API New): basado en promesas, sin paginación
+            // por token/nextPage — máximo 20 resultados por llamada (maxResultCount).
+            const request = {
+                textQuery: textQuery,
+                fields: ['id', 'displayName', 'formattedAddress', 'location', 'rating', 'userRatingCount', 'priceLevel', 'photos'],
+                maxResultCount: 20,
+            };
+            if (!options.skipLocationBias) {
+                request.locationBias = {
+                    center: userPosition,
+                    radius: 10000,
+                };
+            }
+
+            try {
+                const { places } = await google.maps.places.Place.searchByText(request);
+                const plainPlaces = places.map(toPlainPlace);
+                writeSearchCache(cacheKey, plainPlaces);
+                handlePlacesResponse(plainPlaces);
+            } catch (error) {
+                console.error('Error en Place.searchByText:', error);
+                const message = (error && error.message) || '';
+                const isKeyProblem = /api key|permission|forbidden|invalid_argument/i.test(message)
+                    || (error && (error.code === 'INVALID_ARGUMENT' || error.code === 'PERMISSION_DENIED'));
+                if (isKeyProblem) {
+                    document.getElementById('venuesContainer').innerHTML = '';
+                    document.getElementById('resultsCount').textContent = 'Clave de API inválida';
+                    document.getElementById('paginationControls').style.display = 'none';
+                    showApiKeyProblem('Google Places ha rechazado la búsqueda: "' + message + '".');
+                } else {
+                    handlePlacesResponse([]);
+                }
+            }
+        }
+
+        function handlePlacesResponse(places) {
+            const loader = document.getElementById('loader');
+            if (loader) loader.style.display = 'none';
+
+            if (places && places.length > 0) {
+                rawPlaces = places;
+                processAndRenderCurrentPage();
+            } else {
+                document.getElementById('venuesContainer').innerHTML = `<div class="no-results" style="grid-column: 1/-1; text-align:center; padding:30px;">Google Maps no ha devuelto locales para esta búsqueda.</div>`;
+                document.getElementById('resultsCount').textContent = '0 resultados';
+                document.getElementById('mapCounterBadge').textContent = '0 chinchetas';
+                document.getElementById('paginationControls').style.display = 'none';
+            }
+        }
+
+        // La API nueva ya no permite pedir más resultados a Google con "página siguiente":
+        // se piden hasta 20 de una vez y la paginación de aquí en adelante es local,
+        // sobre el conjunto ya filtrado.
+        function changePage(direction) {
+            const totalPages = Math.max(1, Math.ceil(filteredPlaces.length / RESULTS_PER_PAGE));
+            const newIndex = currentPageIndex + direction;
+
+            if (newIndex >= 0 && newIndex < totalPages) {
+                currentPageIndex = newIndex;
+                renderCurrentPage();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        }
+
+        function processAndRenderCurrentPage() {
+            if (rawPlaces.length === 0) return;
+
+            const radiusRadio = document.querySelector('input[name="radiusOption"]:checked');
+            const maxDistance = radiusRadio && radiusRadio.value ? parseFloat(radiusRadio.value) : null;
+
+            const selectedPrices = getCheckedValues('priceCheckboxes');
+            const selectedRatings = getCheckedValues('ratingCheckboxes');
+
+            // OJO: los Place de la API nueva exponen displayName/formattedAddress/etc.
+            // como getters del prototipo, no como propiedades propias — nunca los
+            // clones con spread {...place}, se perderían esos campos. Aquí se añade
+            // calculatedDistance directamente sobre el propio objeto Place.
+            let processed = rawPlaces.map(place => {
+                const loc = place.location;
+                const lat = typeof loc.lat === 'function' ? loc.lat() : loc.lat;
+                const lng = typeof loc.lng === 'function' ? loc.lng() : loc.lng;
+                place.calculatedDistance = calculateDistance(userPosition.lat, userPosition.lng, lat, lng);
+                return place;
+            });
+
+            if (maxDistance !== null) {
+                processed = processed.filter(p => p.calculatedDistance <= maxDistance);
+            }
+
+            if (selectedPrices.length > 0) {
+                processed = processed.filter(p => {
+                    const bucket = priceLevelToFilterBucket(p.priceLevel);
+                    return bucket !== null && selectedPrices.includes(String(bucket));
+                });
+            }
+
+            if (selectedRatings.length > 0) {
+                const minRating = Math.min(...selectedRatings.map(r => parseFloat(r)));
+                processed = processed.filter(p => p.rating && p.rating >= minRating);
+            }
+
+            processed.sort((a, b) => a.calculatedDistance - b.calculatedDistance);
+
+            filteredPlaces = processed;
+            currentPageIndex = 0;
+            renderCurrentPage();
+        }
+
+        function renderCurrentPage() {
+            const totalPages = Math.max(1, Math.ceil(filteredPlaces.length / RESULTS_PER_PAGE));
+            if (currentPageIndex >= totalPages) currentPageIndex = totalPages - 1;
+            if (currentPageIndex < 0) currentPageIndex = 0;
+
+            const start = currentPageIndex * RESULTS_PER_PAGE;
+            const pagePlaces = filteredPlaces.slice(start, start + RESULTS_PER_PAGE);
+
+            renderPlaces(pagePlaces);
+            addMarkers(pagePlaces);
+
+            document.getElementById('pageIndicator').textContent = `Página ${currentPageIndex + 1} de ${totalPages}`;
+            document.getElementById('prevPageBtn').disabled = (currentPageIndex === 0);
+            document.getElementById('nextPageBtn').disabled = (currentPageIndex === totalPages - 1);
+            document.getElementById('paginationControls').style.display = (viewMode === 'grid' && filteredPlaces.length > 0) ? 'flex' : 'none';
+
+            document.getElementById('resultsCount').textContent = `${filteredPlaces.length} locales encontrados`;
+            document.getElementById('mapCounterBadge').textContent = `${pagePlaces.length} chinchetas`;
+
+            swipeIndex = 0;
+            if (viewMode === 'swipe') renderSwipeCard();
+        }
+
+        function getCheckedValues(containerId) {
+            const checkboxes = document.querySelectorAll(`#${containerId} input[type="checkbox"]:checked`);
+            return Array.from(checkboxes).map(cb => cb.value);
+        }
+
+        function renderPlaces(places) {
+            const container = document.getElementById('venuesContainer');
+            container.innerHTML = '';
+
+            if (places.length === 0) {
+                container.innerHTML = `<div class="no-results" style="grid-column: 1/-1; text-align:center; padding:30px;">Ningún local en esta página cumple con los filtros seleccionados. Prueba a navegar a otra página o cambiar criterios.</div>`;
+                return;
+            }
+
+            places.forEach(place => {
+                const card = document.createElement('div');
+                card.className = 'venue-card';
+
+                const photoUrl = getPlacePhotoUrl(place, 400, 260);
+
+                const ratingBadge = place.rating
+                    ? `<span class="venue-badge venue-badge-rating">★ ${place.rating.toFixed(1)}</span>`
+                    : '';
+                let distText = '';
+                if (place.calculatedDistance < 1000) {
+                    distText = `${Math.round(place.calculatedDistance)} m`;
+                } else {
+                    distText = `${(place.calculatedDistance / 1000).toFixed(1)} km`;
+                }
+                const distanceBadge = `<span class="venue-badge venue-badge-distance">📍 ${distText}</span>`;
+
+                const photoHtml = `
+                    <div class="gm-photo" style="${photoUrl ? `background-image: url('${photoUrl}');` : ''}">
+                        ${!photoUrl ? '<div style="height:100%; display:flex; align-items:center; justify-content:center; color:var(--gm-photo-empty-text);">Sin imagen</div>' : ''}
+                        <div class="venue-card-badges">${ratingBadge}${distanceBadge}</div>
+                    </div>
+                `;
+
+                const totalReviews = place.userRatingCount ? `(${place.userRatingCount} reseñas)` : 'Sin valoración';
+                const priceLevelNum = priceLevelToNumber(place.priceLevel);
+                const priceStr = priceLevelNum ? ' · ' + '€'.repeat(priceLevelNum) : '';
+
+                const mapUrl = `https://www.google.com/maps/place/?q=place_id:${encodeURIComponent(place.id)}`;
+                const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination_place_id=${encodeURIComponent(place.id)}`;
+
+                card.innerHTML = `
+                    ${photoHtml}
+                    <div class="venue-body">
+                        <h3 class="gm-title">${escapeHtml(place.displayName)}</h3>
+                        <div class="gm-rating">${totalReviews}${priceStr}</div>
+                        <div class="gm-address">
+                            <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+                            <span>${escapeHtml(place.formattedAddress)}</span>
+                        </div>
+                    </div>
+                    <div class="venue-footer">
+                        <a href="${directionsUrl}" target="_blank" class="gm-btn btn-directions">Cómo llegar</a>
+                        <a href="${mapUrl}" target="_blank" class="gm-btn btn-outline">Ver Horarios en Maps</a>
+                    </div>
+                `;
+
+                container.appendChild(card);
+            });
+        }
+
+        function addMarkers(places) {
+            clearMarkers();
+            const bounds = new google.maps.LatLngBounds();
+
+            if (userPosition) {
+                bounds.extend(userPosition);
+            }
+
+            places.forEach(place => {
+                if (!place.location) return;
+
+                const marker = new google.maps.Marker({
+                    map: map,
+                    position: place.location,
+                    title: place.displayName
+                });
+
+                google.maps.event.addListener(marker, 'click', () => {
+                    infoWindow.setContent(`
+                        <div style="padding: 5px;">
+                            <strong>${escapeHtml(place.displayName)}</strong><br>
+                            ${escapeHtml(place.formattedAddress)}<br>
+                            <a href="https://www.google.com/maps/place/?q=place_id:${encodeURIComponent(place.id)}" target="_blank" style="color:var(--gm-blue); text-decoration:none; display:block; margin-top:5px;">Abrir ficha completa</a>
+                        </div>
+                    `);
+                    infoWindow.open(map, marker);
+                });
+
+                googleMarkers.push(marker);
+                bounds.extend(place.location);
+            });
+
+            if (googleMarkers.length > 0) {
+                map.fitBounds(bounds);
+            } else {
+                map.setCenter(userPosition);
+                map.setZoom(13);
+            }
+        }
+
+        function clearMarkers() {
+            googleMarkers.forEach(marker => marker.setMap(null));
+            googleMarkers = [];
+        }
+
+        document.getElementById('searchInput').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') startNewSearch();
+        });
+
+        // Arranque: si ya hay una clave de Maps guardada, cargamos el mapa directamente;
+        // si no, mostramos el diálogo de configuración (la app no puede hacer nada sin clave).
+        (function bootstrapApiKeys() {
+            updateSettingsIcon();
+            const savedMapsKey = getStoredValue(LS_MAPS_KEY);
+            if (savedMapsKey) {
+                loadGoogleMapsScript(savedMapsKey);
+            } else {
+                document.getElementById('globalMap').innerHTML =
+                    '<div style="padding:20px; text-align:center; color:var(--gm-gray);">Introduce tu clave de Google Maps en "⚙️ Configurar API Keys" para empezar a usar el directorio.</div>';
+                openApiKeyDialog();
+            }
+        })();
+    </script>
+</body>
+</html>
