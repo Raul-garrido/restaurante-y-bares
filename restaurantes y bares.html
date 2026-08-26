@@ -338,6 +338,10 @@
             cursor: pointer; display: flex; align-items: center; justify-content: center;
         }
         .btn-settings:hover, .btn-theme-toggle:hover { background-color: var(--gm-hover-bg); }
+        /* Verde en cuanto hay una clave de Maps guardada (válida o no) — para saber a
+           primera vista si hay algo metido, sin tener que abrir el diálogo. */
+        .btn-settings.has-key { background-color: var(--gm-green); border-color: var(--gm-green); }
+        .btn-settings.has-key:hover { background-color: var(--gm-green-hover); border-color: var(--gm-green-hover); }
 
         dialog.apikey-dialog {
             border: none; border-radius: 12px; padding: 24px; max-width: 480px; width: 90vw;
@@ -691,6 +695,10 @@
             return localStorage.getItem(key) || sessionStorage.getItem(key) || '';
         }
 
+        function updateSettingsIcon() {
+            document.querySelector('.btn-settings').classList.toggle('has-key', !!getStoredValue(LS_MAPS_KEY));
+        }
+
         // --- Caché de búsquedas (ahorra peticiones facturables al repetir la misma
         // búsqueda en poco tiempo, p.ej. al recargar varias veces mientras se prueba) ---
         const SEARCH_CACHE_PREFIX = 'rb_searchCache_';
@@ -978,6 +986,7 @@
             store.setItem(LS_AI_PROVIDER, aiProvider);
             localStorage.setItem(LS_REMEMBER, remember ? 'true' : 'false');
 
+            updateSettingsIcon();
             closeApiKeyDialog();
 
             // Solo recargamos si el script de Maps ya se había pedido antes en esta misma
@@ -1668,6 +1677,7 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
         // Arranque: si ya hay una clave de Maps guardada, cargamos el mapa directamente;
         // si no, mostramos el diálogo de configuración (la app no puede hacer nada sin clave).
         (function bootstrapApiKeys() {
+            updateSettingsIcon();
             const savedMapsKey = getStoredValue(LS_MAPS_KEY);
             if (savedMapsKey) {
                 loadGoogleMapsScript(savedMapsKey);
