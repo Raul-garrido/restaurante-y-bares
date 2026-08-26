@@ -990,7 +990,9 @@
                 location: { lat, lng },
                 photoUrl,
                 businessStatus: place.businessStatus || null,
-                specialtyType: place.primaryTypeDisplayName ? place.primaryTypeDisplayName.text : null,
+                // OJO: a diferencia de la API REST (donde es {text, languageCode}), en el
+                // SDK de JS primaryTypeDisplayName ya viene como string plano.
+                specialtyType: place.primaryTypeDisplayName || null,
                 openNow: place.regularOpeningHours ? !!place.regularOpeningHours.openNow : null,
                 weekdayDescriptions: place.regularOpeningHours && place.regularOpeningHours.weekdayDescriptions
                     ? place.regularOpeningHours.weekdayDescriptions.slice()
