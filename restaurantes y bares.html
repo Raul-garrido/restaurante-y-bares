@@ -826,9 +826,11 @@
         const LS_USE_LOCATION = 'rb_useLocation';
         const LS_THEME = 'rb_theme';
 
-        // Tema: 'light' | 'dark' fuerzan el modo vía atributo data-theme; si no hay nada
-        // guardado, el CSS ya sigue el tema del sistema (prefers-color-scheme) por su cuenta.
-        // data-theme siempre se deja explícito ("light" o "dark"), nunca ausente: así solo
+        // Tema: 'light' | 'dark' guardado en localStorage fuerza el modo vía data-theme; si
+        // no hay nada guardado, se usa prefers-color-scheme solo como valor inicial (más
+        // abajo hay un listener para seguirlo en vivo si cambia sin que el usuario haya
+        // elegido tema a mano). data-theme siempre se deja explícito ("light" o "dark"),
+        // nunca ausente: así solo
         // hay un bloque CSS de modo oscuro que mantener (antes había uno igual duplicado
         // dentro de @media prefers-color-scheme, pensado para cuando no había elección
         // explícita, y se desincronizó más de una vez al editar solo uno de los dos).
@@ -1377,33 +1379,6 @@
                       Math.sin(dLon/2) * Math.sin(dLon/2);
             const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
             return R * c; 
-        }
-
-        function toggleDropdown(dropdownId) {
-            const currentDrop = document.getElementById(dropdownId);
-            const isActive = currentDrop.classList.contains('active');
-            document.querySelectorAll('.dropdown-filter').forEach(d => d.classList.remove('active'));
-            if (!isActive) {
-                currentDrop.classList.add('active');
-            }
-        }
-
-        window.addEventListener('click', function(e) {
-            if (!e.target.closest('.dropdown-filter')) {
-                document.querySelectorAll('.dropdown-filter').forEach(d => d.classList.remove('active'));
-            }
-        });
-
-        function resetFilterGroup(containerId, type, callback) {
-            const container = document.getElementById(containerId);
-            if (type === 'radiusOption') {
-                const radios = container.querySelectorAll('input[type="radio"]');
-                if (radios.length > 0) radios[0].checked = true;
-            } else {
-                const checkboxes = container.querySelectorAll('input[type="checkbox"]');
-                checkboxes.forEach(cb => cb.checked = false);
-            }
-            callback();
         }
 
         function handleRadiusChange() {
