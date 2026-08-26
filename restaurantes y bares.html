@@ -78,11 +78,25 @@
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', -apple-system, Segoe UI, Arial, sans-serif; }
-        body { background-color: var(--gm-bg); color: var(--gm-dark); line-height: 1.5; padding: 20px; transition: background-color 0.2s, color 0.2s; }
-        header { max-width: 1200px; margin: 0 auto 20px auto; text-align: center; position: relative; }
-        header h1 { font-family: 'Poppins', 'Inter', sans-serif; font-size: 2rem; color: var(--gm-dark); margin-bottom: 6px; }
-        header p { color: var(--gm-gray); font-size: 1rem; }
-        .container { max-width: 1200px; margin: 0 auto; }
+        html, body { background-color: var(--gm-bg); }
+        body { color: var(--gm-dark); line-height: 1.5; transition: background-color 0.2s, color 0.2s; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 20px 20px 20px; }
+
+        /* Cabecera tipo app: banda de color a todo lo ancho, con el buscador de IA
+           flotando encima del borde inferior — nada de todo apilado en cajas iguales. */
+        .hero {
+            background: linear-gradient(135deg, var(--gm-blue) 0%, #ff8f5e 100%);
+            padding: 26px 20px 70px 20px; position: relative; color: #fff;
+        }
+        .hero-top { max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+        .hero-titles h1 { font-family: 'Poppins', sans-serif; font-size: 1.9rem; font-weight: 700; margin-bottom: 4px; }
+        .hero-titles p { color: rgba(255,255,255,0.88); font-size: 0.95rem; }
+        .header-corner-actions { position: static; display: flex; gap: 8px; flex-shrink: 0; }
+        .btn-settings, .btn-theme-toggle { background-color: rgba(255,255,255,0.18); color: #fff; border: 1px solid rgba(255,255,255,0.35); }
+        .btn-settings:hover, .btn-theme-toggle:hover { background-color: rgba(255,255,255,0.3); }
+        .btn-settings.has-key { background-color: var(--gm-green); border-color: var(--gm-green); }
+
+        .hero-search-wrap { max-width: 900px; margin: -50px auto 0 auto; padding: 0 20px; position: relative; z-index: 5; }
 
         /* Mapa General y Botón de Geolocalización */
         .global-map-section {
@@ -123,13 +137,13 @@
             background: var(--gm-card-bg); border: 1px solid var(--gm-border); border-radius: 18px;
             padding: 22px; margin-bottom: 28px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);
         }
-        .search-box { margin-bottom: 15px; display: flex; gap: 10px; }
+        .search-box { margin-bottom: 20px; display: flex; gap: 10px; }
         .search-box input {
             flex-grow: 1; padding: 12px 16px; font-size: 1rem; border: 1px solid var(--gm-border);
             border-radius: 8px; outline: none; transition: border-color 0.2s;
         }
         .search-box input:focus { border-color: var(--gm-blue); }
-        
+
         .btn-action {
             background-color: var(--gm-blue); color: white; border: none; padding: 0 20px;
             border-radius: 8px; font-weight: 500; cursor: pointer; font-size: 0.95rem; white-space: nowrap;
@@ -138,79 +152,28 @@
         .btn-sync { background-color: var(--gm-green); }
         .btn-sync:hover { background-color: var(--gm-green-hover); }
 
-        .filter-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
-
-        /* Estilo Dropdown Desplegable */
-        .dropdown-filter {
-            position: relative;
-            border: 1px solid var(--gm-border);
-            border-radius: 8px;
-            background: var(--gm-card-bg);
+        /* Filtros como chips/píldoras siempre visibles: se toca directamente, sin abrir
+           nada — patrón de app (Airbnb, apps de comida), no de formulario de admin. */
+        .chip-group { margin-bottom: 18px; }
+        .chip-group:last-child { margin-bottom: 0; }
+        .chip-group-label {
+            display: block; font-size: 0.75rem; font-weight: 700; color: var(--gm-gray);
+            text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px;
         }
-        .dropdown-toggle {
-            padding: 12px 14px;
-            font-size: 0.9rem;
-            color: var(--gm-dark);
-            cursor: pointer;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-weight: 500;
-            user-select: none;
+        .chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
+        .chip { cursor: pointer; position: relative; }
+        .chip input { position: absolute; opacity: 0; width: 0; height: 0; }
+        .chip span {
+            display: inline-flex; align-items: center; padding: 8px 16px; border-radius: 20px;
+            border: 1px solid var(--gm-border); background: var(--gm-bg); color: var(--gm-dark);
+            font-size: 0.85rem; font-weight: 500; transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+            white-space: nowrap;
         }
-        .dropdown-toggle::after {
-            content: "▼";
-            font-size: 0.7rem;
-            color: var(--gm-gray);
-            transition: transform 0.2s;
+        .chip:hover span { background: var(--gm-hover-bg); }
+        .chip input:checked + span {
+            background: var(--gm-blue); border-color: var(--gm-blue); color: #fff; font-weight: 600;
         }
-        .dropdown-filter.active .dropdown-toggle::after {
-            transform: rotate(180deg);
-        }
-        .dropdown-content {
-            display: none;
-            position: absolute;
-            top: 100%;
-            left: 0;
-            right: 0;
-            background: var(--gm-card-bg);
-            border: 1px solid var(--gm-border);
-            border-top: none;
-            border-radius: 0 0 8px 8px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            z-index: 100;
-            padding: 10px;
-            max-height: 190px;
-            overflow-y: auto;
-        }
-        .dropdown-filter.active .dropdown-content {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-        .dropdown-content label {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.9rem;
-            cursor: pointer;
-            color: var(--gm-dark);
-        }
-        
-        .reset-filter-btn {
-            background-color: var(--gm-hover-bg);
-            color: var(--gm-red);
-            border: 1px solid var(--gm-border);
-            padding: 6px 10px;
-            border-radius: 4px;
-            font-size: 0.8rem;
-            font-weight: 500;
-            cursor: pointer;
-            text-align: center;
-            margin-bottom: 4px;
-            transition: background-color 0.2s;
-        }
-        .reset-filter-btn:hover { background-color: var(--gm-red-bg); }
+        .chip input:focus-visible + span { outline: 2px solid var(--gm-blue); outline-offset: 2px; }
 
         .results-info { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; font-size: 0.9rem; color: var(--gm-gray); flex-wrap: wrap; gap: 10px; }
         .results-info-right { display: flex; align-items: center; gap: 10px; }
@@ -389,8 +352,13 @@
         }
 
         /* Panel de IA */
-        .ai-panel { background: var(--gm-ai-bg); border-color: var(--gm-ai-border); }
-        .ai-panel-title { font-size: 1rem; margin-bottom: 12px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
+        /* Tarjeta flotante de búsqueda por IA: la principal forma de usar la app, así que
+           se le da el sitio más destacado, encima del borde de la banda de color. */
+        .ai-panel {
+            background: var(--gm-card-bg); border: none; border-radius: 22px;
+            box-shadow: 0 16px 40px rgba(0,0,0,0.18); padding: 22px;
+        }
+        .ai-panel-title { font-size: 1.05rem; margin-bottom: 12px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
         .ai-input-row { display: flex; gap: 10px; align-items: flex-start; }
         .ai-input-row textarea {
             flex-grow: 1; padding: 12px 16px; font-size: 0.95rem; border: 1px solid var(--gm-border);
@@ -411,14 +379,33 @@
 </head>
 <body>
 
-    <header>
-        <h1>Directorio Gastronómico con Geolocalización</h1>
-        <p>Recomendaciones en directo basadas en proximidad GPS y mapas oficiales de Google.</p>
-        <div class="header-corner-actions">
-            <button class="btn-settings" onclick="openApiKeyDialog()" title="Configurar API Keys">⚙️</button>
-            <button class="btn-theme-toggle" onclick="toggleTheme()" title="Cambiar tema claro/oscuro" id="themeToggleBtn">🌙</button>
+    <header class="hero">
+        <div class="hero-top">
+            <div class="hero-titles">
+                <h1>Antojo</h1>
+                <p>Encuentra tu próximo sitio favorito, cerca de ti.</p>
+            </div>
+            <div class="header-corner-actions">
+                <button class="btn-settings" onclick="openApiKeyDialog()" title="Configurar API Keys">⚙️</button>
+                <button class="btn-theme-toggle" onclick="toggleTheme()" title="Cambiar tema claro/oscuro" id="themeToggleBtn">🌙</button>
+            </div>
         </div>
     </header>
+
+    <div class="hero-search-wrap">
+        <!-- Panel de búsqueda por IA -->
+        <section class="filters-panel ai-panel">
+            <h2 class="ai-panel-title">🤖 Pregunta a la IA <span class="apikey-status">(ej: "quiero tapas cerca de mí", "comida china en Alcalá de Henares")</span></h2>
+            <div class="ai-input-row">
+                <textarea id="aiQueryInput" rows="2" placeholder='Escribe o dicta lo que te apetece comer y dónde, por ejemplo: "unas buenas tapas cerca de mí" o "comida china en Alcalá de Henares"'></textarea>
+                <div class="ai-input-buttons">
+                    <button type="button" class="btn-mic" id="aiMicBtn" onclick="toggleMic()" title="Dictar por voz">🎤</button>
+                    <button type="button" class="btn-action" onclick="runAiSearch()">Preguntar</button>
+                </div>
+            </div>
+            <p class="ai-status" id="aiStatus"></p>
+        </section>
+    </div>
 
     <!-- Diálogo de configuración: claves guardadas solo en este navegador (localStorage/sessionStorage),
          nunca se envían a ningún servidor propio del proyecto. -->
@@ -478,89 +465,62 @@
             </label>
         </section>
 
-        <!-- Panel de búsqueda por IA -->
-        <section class="filters-panel ai-panel">
-            <h2 class="ai-panel-title">🤖 Pregunta a la IA <span class="apikey-status">(ej: "quiero tapas cerca de mí", "comida china en Alcalá de Henares")</span></h2>
-            <div class="ai-input-row">
-                <textarea id="aiQueryInput" rows="2" placeholder='Escribe o dicta lo que te apetece comer y dónde, por ejemplo: "unas buenas tapas cerca de mí" o "comida china en Alcalá de Henares"'></textarea>
-                <div class="ai-input-buttons">
-                    <button type="button" class="btn-mic" id="aiMicBtn" onclick="toggleMic()" title="Dictar por voz">🎤</button>
-                    <button type="button" class="btn-action" onclick="runAiSearch()">Preguntar</button>
-                </div>
-            </div>
-            <p class="ai-status" id="aiStatus"></p>
-        </section>
-
-        <!-- Panel de Filtros -->
+        <!-- Panel de Filtros: chips/píldoras siempre visibles, nada de desplegables tipo
+             formulario -->
         <section class="filters-panel">
             <div class="search-box">
                 <input type="text" id="searchInput" placeholder="Buscar por nombre o calle (ej: Asador, Pizzería, Bar)...">
                 <button class="btn-action" onclick="startNewSearch()">Buscar</button>
                 <button class="btn-action btn-sync" onclick="forceDataSync()" title="Recargar datos de Google">Actualizar Datos</button>
             </div>
-            
-            <div class="filter-grid">
-                <!-- Dropdown: Cercanía -->
-                <div class="dropdown-filter" id="dropRadius">
-                    <div class="dropdown-toggle" onclick="toggleDropdown('dropRadius')">Cercanía (Radio GPS)</div>
-                    <div class="dropdown-content" id="radiusOptions">
-                        <button type="button" class="reset-filter-btn" onclick="resetFilterGroup('radiusOptions', 'radiusOption', handleRadiusChange)">✕ Limpiar Cercanía</button>
-                        <label><input type="radio" name="radiusOption" value="" checked onchange="handleRadiusChange()"> Sin límite de distancia</label>
-                        <label><input type="radio" name="radiusOption" value="100" onchange="handleRadiusChange()"> A menos de 100 m</label>
-                        <label><input type="radio" name="radiusOption" value="200" onchange="handleRadiusChange()"> A menos de 200 m</label>
-                        <label><input type="radio" name="radiusOption" value="300" onchange="handleRadiusChange()"> A menos de 300 m</label>
-                        <label><input type="radio" name="radiusOption" value="400" onchange="handleRadiusChange()"> A menos de 400 m</label>
-                        <label><input type="radio" name="radiusOption" value="500" onchange="handleRadiusChange()"> A menos de 500 m</label>
-                        <label><input type="radio" name="radiusOption" value="1000" onchange="handleRadiusChange()"> A menos de 1 km</label>
-                        <label><input type="radio" name="radiusOption" value="2000" onchange="handleRadiusChange()"> A menos de 2 km</label>
-                        <label><input type="radio" name="radiusOption" value="5000" onchange="handleRadiusChange()"> A menos de 5 km</label>
-                    </div>
-                </div>
 
-                <!-- Dropdown: Tipo de Local -->
-                <div class="dropdown-filter" id="dropTypes">
-                    <div class="dropdown-toggle" onclick="toggleDropdown('dropTypes')">Tipo de Local</div>
-                    <div class="dropdown-content" id="typeCheckboxes">
-                        <button type="button" class="reset-filter-btn" onclick="resetFilterGroup('typeCheckboxes', 'checkbox', startNewSearch)">✕ Limpiar Tipo</button>
-                        <label><input type="checkbox" value="restaurant" onchange="startNewSearch()"> Restaurante</label>
-                        <label><input type="checkbox" value="bar" onchange="startNewSearch()"> Bar / Gastrobar</label>
-                        <label><input type="checkbox" value="cafe" onchange="startNewSearch()"> Cafetería</label>
-                    </div>
+            <div class="chip-group">
+                <span class="chip-group-label">Cercanía</span>
+                <div class="chip-row" id="radiusOptions">
+                    <label class="chip"><input type="radio" name="radiusOption" value="" checked onchange="handleRadiusChange()"><span>Sin límite</span></label>
+                    <label class="chip"><input type="radio" name="radiusOption" value="300" onchange="handleRadiusChange()"><span>≤300 m</span></label>
+                    <label class="chip"><input type="radio" name="radiusOption" value="500" onchange="handleRadiusChange()"><span>≤500 m</span></label>
+                    <label class="chip"><input type="radio" name="radiusOption" value="1000" onchange="handleRadiusChange()"><span>≤1 km</span></label>
+                    <label class="chip"><input type="radio" name="radiusOption" value="2000" onchange="handleRadiusChange()"><span>≤2 km</span></label>
+                    <label class="chip"><input type="radio" name="radiusOption" value="5000" onchange="handleRadiusChange()"><span>≤5 km</span></label>
                 </div>
+            </div>
 
-                <!-- Dropdown: Estilo / Cocina -->
-                <div class="dropdown-filter" id="dropCuisines">
-                    <div class="dropdown-toggle" onclick="toggleDropdown('dropCuisines')">Estilo / Cocina</div>
-                    <div class="dropdown-content" id="cuisineCheckboxes">
-                        <button type="button" class="reset-filter-btn" onclick="resetFilterGroup('cuisineCheckboxes', 'checkbox', startNewSearch)">✕ Limpiar Cocina</button>
-                        <label><input type="checkbox" value="Mediterránea" onchange="startNewSearch()"> Mediterránea</label>
-                        <label><input type="checkbox" value="Americana" onchange="startNewSearch()"> Americana / Burger</label>
-                        <label><input type="checkbox" value="Italiana" onchange="startNewSearch()"> Italiana / Pizzería</label>
-                        <label><input type="checkbox" value="Asiática" onchange="startNewSearch()"> Asiática / Sushi</label>
-                        <label><input type="checkbox" value="Tapas" onchange="startNewSearch()"> Tapas / Raciones</label>
-                    </div>
+            <div class="chip-group">
+                <span class="chip-group-label">Tipo de local</span>
+                <div class="chip-row" id="typeCheckboxes">
+                    <label class="chip"><input type="checkbox" value="restaurant" onchange="startNewSearch()"><span>Restaurante</span></label>
+                    <label class="chip"><input type="checkbox" value="bar" onchange="startNewSearch()"><span>Bar / Gastrobar</span></label>
+                    <label class="chip"><input type="checkbox" value="cafe" onchange="startNewSearch()"><span>Cafetería</span></label>
                 </div>
+            </div>
 
-                <!-- Dropdown: Rango de Precio -->
-                <div class="dropdown-filter" id="dropPrices">
-                    <div class="dropdown-toggle" onclick="toggleDropdown('dropPrices')">Precio (€)</div>
-                    <div class="dropdown-content" id="priceCheckboxes">
-                        <button type="button" class="reset-filter-btn" onclick="resetFilterGroup('priceCheckboxes', 'checkbox', processAndRenderCurrentPage)">✕ Limpiar Precio</button>
-                        <label><input type="checkbox" value="1" onchange="processAndRenderCurrentPage()"> Económico (€)</label>
-                        <label><input type="checkbox" value="2" onchange="processAndRenderCurrentPage()"> Moderado (€€)</label>
-                        <label><input type="checkbox" value="3" onchange="processAndRenderCurrentPage()"> Elevado (€€€/€€€€)</label>
-                    </div>
+            <div class="chip-group">
+                <span class="chip-group-label">Estilo / Cocina</span>
+                <div class="chip-row" id="cuisineCheckboxes">
+                    <label class="chip"><input type="checkbox" value="Mediterránea" onchange="startNewSearch()"><span>Mediterránea</span></label>
+                    <label class="chip"><input type="checkbox" value="Americana" onchange="startNewSearch()"><span>Americana / Burger</span></label>
+                    <label class="chip"><input type="checkbox" value="Italiana" onchange="startNewSearch()"><span>Italiana / Pizzería</span></label>
+                    <label class="chip"><input type="checkbox" value="Asiática" onchange="startNewSearch()"><span>Asiática / Sushi</span></label>
+                    <label class="chip"><input type="checkbox" value="Tapas" onchange="startNewSearch()"><span>Tapas / Raciones</span></label>
                 </div>
+            </div>
 
-                <!-- Dropdown: Valoración en Estrellas -->
-                <div class="dropdown-filter" id="dropRatings">
-                    <div class="dropdown-toggle" onclick="toggleDropdown('dropRatings')">Valoración Mínima</div>
-                    <div class="dropdown-content" id="ratingCheckboxes">
-                        <button type="button" class="reset-filter-btn" onclick="resetFilterGroup('ratingCheckboxes', 'checkbox', processAndRenderCurrentPage)">✕ Limpiar Valoración</button>
-                        <label><input type="checkbox" value="4.5" onchange="processAndRenderCurrentPage()"> ★★★★★ (4.5 o más)</label>
-                        <label><input type="checkbox" value="4.0" onchange="processAndRenderCurrentPage()"> ★★★★☆ (4.0 o más)</label>
-                        <label><input type="checkbox" value="3.5" onchange="processAndRenderCurrentPage()"> ★★★☆☆ (3.5 o más)</label>
-                    </div>
+            <div class="chip-group">
+                <span class="chip-group-label">Precio</span>
+                <div class="chip-row" id="priceCheckboxes">
+                    <label class="chip"><input type="checkbox" value="1" onchange="processAndRenderCurrentPage()"><span>€ Económico</span></label>
+                    <label class="chip"><input type="checkbox" value="2" onchange="processAndRenderCurrentPage()"><span>€€ Moderado</span></label>
+                    <label class="chip"><input type="checkbox" value="3" onchange="processAndRenderCurrentPage()"><span>€€€ Elevado</span></label>
+                </div>
+            </div>
+
+            <div class="chip-group">
+                <span class="chip-group-label">Valoración mínima</span>
+                <div class="chip-row" id="ratingCheckboxes">
+                    <label class="chip"><input type="checkbox" value="3.5" onchange="processAndRenderCurrentPage()"><span>★ 3.5+</span></label>
+                    <label class="chip"><input type="checkbox" value="4.0" onchange="processAndRenderCurrentPage()"><span>★ 4.0+</span></label>
+                    <label class="chip"><input type="checkbox" value="4.5" onchange="processAndRenderCurrentPage()"><span>★ 4.5+</span></label>
                 </div>
             </div>
         </section>
