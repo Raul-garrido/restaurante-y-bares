@@ -14,7 +14,6 @@
         :root {
             --gm-blue: #0F766E;
             --gm-blue-hover: #0B5D57;
-            --gm-hero-gradient-end: #14B8A6;
             --gm-dark: #211D19;
             --gm-gray: #6E8783;
             --gm-bg: #E3F1EE;
@@ -32,13 +31,17 @@
             --gm-ai-bg: #EAF6F5;
             --gm-ai-border: #BFE3DF;
             --gm-photo-empty-text: #7FA39D;
-            /* Cabecera en mostaza pastel (distinta del teal del resto de la app) */
+            /* Cabecera en mostaza pastel (distinta del teal del resto de la app); son el
+               fondo de respaldo antes de que cargue la foto y el borde visible donde la
+               foto no llega a cubrir. */
             --gm-hero-start: #EDD48A;
             --gm-hero-end: #E0BD5E;
-            --gm-hero-text: #2A2213;
-            --gm-hero-btn-bg: rgba(0,0,0,0.07);
-            --gm-hero-btn-border: rgba(0,0,0,0.18);
-            --gm-hero-btn-hover: rgba(0,0,0,0.12);
+            /* Texto y botones de la cabecera van SIEMPRE en blanco sobre velo oscuro,
+               porque ahora hay una foto de fondo de por medio (no varían con el tema). */
+            --gm-hero-text: #FFFFFF;
+            --gm-hero-btn-bg: rgba(0,0,0,0.38);
+            --gm-hero-btn-border: rgba(255,255,255,0.3);
+            --gm-hero-btn-hover: rgba(0,0,0,0.52);
         }
         /* Modo oscuro neutro (grises reales, no marrón tintado) con las tarjetas
            claramente más claras que el fondo — así los recuadros se distinguen de
@@ -51,7 +54,6 @@
         :root[data-theme="dark"] {
             --gm-blue: #2DD4BF;
             --gm-blue-hover: #5EEAD4;
-            --gm-hero-gradient-end: #0F766E;
             --gm-dark: #EDEDED;
             --gm-gray: #A3A3A3;
             --gm-bg: #121212;
@@ -71,10 +73,6 @@
             --gm-photo-empty-text: #6B6B6B;
             --gm-hero-start: #2DD4BF;
             --gm-hero-end: #0F766E;
-            --gm-hero-text: #FFFFFF;
-            --gm-hero-btn-bg: rgba(255,255,255,0.18);
-            --gm-hero-btn-border: rgba(255,255,255,0.35);
-            --gm-hero-btn-hover: rgba(255,255,255,0.3);
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', -apple-system, Segoe UI, Arial, sans-serif; }
@@ -99,21 +97,33 @@
             background: linear-gradient(135deg, var(--gm-hero-start) 0%, var(--gm-hero-end) 100%);
             padding: 26px 20px 70px 20px; position: relative; color: var(--gm-hero-text); overflow: hidden;
         }
+        /* Velo oscuro en diagonal sobre la foto para que el título y los botones se
+           lean bien encima de cualquier zona de la imagen, sin taparla del todo. */
+        .hero::before {
+            content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+            background: linear-gradient(115deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.22) 45%, rgba(0,0,0,0.08) 75%);
+        }
         .hero-top { max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; position: relative; z-index: 2; }
-        .hero-titles h1 { font-family: 'Poppins', sans-serif; font-size: 1.9rem; font-weight: 700; margin-bottom: 4px; }
-        .hero-titles p { color: var(--gm-hero-text); opacity: 0.82; font-size: 0.95rem; }
+        .hero-titles h1 { font-family: 'Poppins', sans-serif; font-size: 1.9rem; font-weight: 700; margin-bottom: 4px; text-shadow: 0 1px 6px rgba(0,0,0,0.4); }
+        .hero-titles p { color: var(--gm-hero-text); opacity: 0.92; font-size: 0.95rem; text-shadow: 0 1px 4px rgba(0,0,0,0.4); }
         .header-corner-actions { position: static; display: flex; gap: 8px; flex-shrink: 0; }
-        .btn-settings, .btn-theme-toggle { background-color: var(--gm-hero-btn-bg); color: var(--gm-hero-text); border: 1px solid var(--gm-hero-btn-border); }
+        .btn-settings, .btn-theme-toggle {
+            background-color: var(--gm-hero-btn-bg); color: var(--gm-hero-text); border: 1px solid var(--gm-hero-btn-border);
+            border-radius: 20px; width: 38px; height: 38px; font-size: 1.1rem;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+        }
         .btn-settings:hover, .btn-theme-toggle:hover { background-color: var(--gm-hero-btn-hover); }
-        .btn-settings.has-key { background-color: var(--gm-green); border-color: var(--gm-green); color: #fff; }
 
-        /* Ilustración de comida en la esquina de la cabecera: propia (SVG, sin depender
-           de fotos de terceros), con huecos para que siga asomando el mostaza pastel de
-           fondo donde no hay dibujo. Se oculta en pantallas muy estrechas para no pelearse
-           con el texto. */
-        .hero-illustration { position: absolute; right: -10px; top: 50%; transform: translateY(-50%); z-index: 1; opacity: 0.9; pointer-events: none; }
-        .hero-illustration svg { width: 150px; height: 150px; display: block; }
-        @media (max-width: 480px) { .hero-illustration { display: none; } }
+        /* Foto de comida panorámica (ya trae su propio fondo mostaza) cubriendo toda la
+           cabecera con background-size:cover — nunca se deforma/estira, como mucho recorta
+           bordes. El mostaza pastel de --gm-hero-start/end queda como respaldo mientras
+           carga o si el navegador no soporta la imagen. El velo de .hero::before (encima)
+           es lo que mantiene el título y los botones legibles sobre la foto. */
+        .hero-illustration {
+            position: absolute; inset: 0; z-index: 0;
+            background-image: url('hero-food.jpg'); background-size: cover; background-position: center;
+            pointer-events: none;
+        }
 
         .hero-search-wrap { max-width: 900px; margin: -50px auto 0 auto; padding: 0 20px; position: relative; z-index: 5; }
 
@@ -403,18 +413,9 @@
 
         #loader { text-align: center; padding: 40px; color: var(--gm-gray); font-size: 1.1rem; display: none; grid-column: 1 / -1; }
 
-        /* Botón y diálogo de configuración de API Keys: ahora solo icono, en la esquina,
-           junto al de tema, para que no compita visualmente con el título. */
-        .header-corner-actions { position: absolute; top: 0; right: 0; display: flex; gap: 8px; }
-        .btn-settings, .btn-theme-toggle {
-            background-color: var(--gm-card-bg); color: var(--gm-dark); border: 1px solid var(--gm-border);
-            border-radius: 20px; width: 38px; height: 38px; font-size: 1.1rem;
-            cursor: pointer; display: flex; align-items: center; justify-content: center;
-        }
-        .btn-settings:hover, .btn-theme-toggle:hover { background-color: var(--gm-hover-bg); }
         /* Verde en cuanto hay una clave de Maps guardada (válida o no) — para saber a
            primera vista si hay algo metido, sin tener que abrir el diálogo. */
-        .btn-settings.has-key { background-color: var(--gm-green); border-color: var(--gm-green); }
+        .btn-settings.has-key { background-color: var(--gm-green); border-color: var(--gm-green); color: #fff; }
         .btn-settings.has-key:hover { background-color: var(--gm-green-hover); border-color: var(--gm-green-hover); }
 
         dialog.apikey-dialog {
@@ -660,7 +661,7 @@
                     <button class="btn-icon-action" id="filtersTriggerBtn" onclick="openFiltersDialog()" title="Filtros">
                         🔧<span class="filters-badge" id="filtersBadge" style="display:none;">0</span>
                     </button>
-                    <button class="btn-icon-action" onclick="forceDataSync()" title="Recargar datos de Google">↻</button>
+                    <button class="btn-icon-action" id="syncBtn" onclick="forceDataSync()" title="Recargar datos de Google">↻</button>
                 </div>
             </section>
 
@@ -809,6 +810,10 @@
             const div = document.createElement('div');
             div.textContent = String(value);
             return div.innerHTML;
+        }
+
+        function getGpsMarkerColor() {
+            return getComputedStyle(document.documentElement).getPropertyValue('--gm-blue').trim() || '#0F766E';
         }
 
         // --- Gestión de claves API (Google Maps + IA reservada para el futuro) ---
@@ -1266,7 +1271,7 @@
                     icon: {
                         path: google.maps.SymbolPath.CIRCLE,
                         scale: 8,
-                        fillColor: "#0F766E",
+                        fillColor: getGpsMarkerColor(),
                         fillOpacity: 1,
                         strokeColor: "#ffffff",
                         strokeWeight: 2,
@@ -1291,7 +1296,7 @@
                             icon: {
                                 path: google.maps.SymbolPath.CIRCLE,
                                 scale: 8,
-                                fillColor: "#0F766E",
+                                fillColor: getGpsMarkerColor(),
                                 fillOpacity: 1,
                                 strokeColor: "#ffffff",
                                 strokeWeight: 2,
@@ -1341,7 +1346,7 @@
                             icon: {
                                 path: google.maps.SymbolPath.CIRCLE,
                                 scale: 8,
-                                fillColor: "#0F766E",
+                                fillColor: getGpsMarkerColor(),
                                 fillOpacity: 1,
                                 strokeColor: "#ffffff",
                                 strokeWeight: 2,
@@ -1422,10 +1427,11 @@
         }
 
         function forceDataSync() {
-            const btn = document.querySelector('.btn-sync');
-            btn.textContent = "Sincronizando...";
+            const btn = document.getElementById('syncBtn');
+            btn.disabled = true;
+            btn.style.opacity = '0.5';
             startNewSearch();
-            setTimeout(() => { btn.textContent = "Actualizar Datos"; }, 800);
+            setTimeout(() => { btn.disabled = false; btn.style.opacity = ''; }, 800);
         }
 
         // --- Búsqueda por IA en lenguaje natural ---
