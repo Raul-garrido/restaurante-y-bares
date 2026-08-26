@@ -495,6 +495,22 @@
         const LS_AI_PROVIDER = 'rb_aiProvider';
         const LS_REMEMBER = 'rb_rememberKeys';
         const LS_USE_LOCATION = 'rb_useLocation';
+        const SS_CACHED_POSITION = 'rb_cachedPosition';
+
+        // La posición se guarda en sessionStorage para que, aunque la página se recargue
+        // (p.ej. al guardar una clave de API nueva), no haga falta volver a pedirle
+        // permiso/ubicación al navegador — se reutiliza mientras dure esta pestaña.
+        function getCachedPosition() {
+            try {
+                const raw = sessionStorage.getItem(SS_CACHED_POSITION);
+                return raw ? JSON.parse(raw) : null;
+            } catch (e) {
+                return null;
+            }
+        }
+        function cachePosition(position) {
+            sessionStorage.setItem(SS_CACHED_POSITION, JSON.stringify(position));
+        }
 
         function getStoredValue(key) {
             return localStorage.getItem(key) || sessionStorage.getItem(key) || '';
@@ -542,9 +558,17 @@
             store.setItem(LS_AI_PROVIDER, aiProvider);
             localStorage.setItem(LS_REMEMBER, remember ? 'true' : 'false');
 
-            // Recargamos la página en vez de reinyectar el script de Maps: cargar la API de
-            // Google Maps dos veces en la misma página no está soportado y rompe el mapa.
-            location.reload();
+            closeApiKeyDialog();
+
+            // Solo recargamos si el script de Maps ya se había pedido antes en esta misma
+            // carga de página (cargarlo dos veces no está soportado y rompe el mapa). La
+            // primera vez (o si aún no había cargado por una clave inválida) lo inyectamos
+            // directamente sin recargar, para no repetir la petición de ubicación al GPS.
+            if (mapsScriptRequested) {
+                location.reload();
+            } else {
+                loadGoogleMapsScript(mapsKey);
+            }
         }
 
         let mapsScriptRequested = false;
@@ -564,7 +588,11 @@
         // cargar el script) o de un error al llamar a Place.searchByText (la clave carga el
         // script pero no tiene Places API (New) habilitada, o es directamente inválida).
         function showApiKeyProblem(detail) {
-            mapsScriptRequested = false;
+            // OJO: mapsScriptRequested NO se resetea aquí a propósito. El script de Maps
+            // ya se inyectó una vez (aunque la clave fallara), y Google no admite cargarlo
+            // dos veces en la misma página — así que un siguiente intento con otra clave
+            // tiene que pasar por saveApiKeys() -> location.reload(), nunca por una segunda
+            // inyección directa del script.
             document.getElementById('globalMap').innerHTML =
                 `<div style="padding:20px; text-align:center; color:#d93025;">${escapeHtml(detail)} Revisa en Google Cloud Console que tengas habilitadas "Maps JavaScript API" y "Places API (New)", y que las restricciones de dominio incluyan este sitio.</div>`;
             document.getElementById('mapCounterBadge').textContent = 'Clave inválida';
@@ -595,16 +623,37 @@
             const useLocation = localStorage.getItem(LS_USE_LOCATION) !== 'false';
             useLocationCheckbox.checked = useLocation;
 
-            // Ubicación pedida una sola vez al cargar (no en cada búsqueda): userPosition
-            // se reutiliza después para todas las búsquedas "cerca de mí", tanto manuales
-            // como las que dispare la IA.
-            if (useLocation && navigator.geolocation) {
+            // Ubicación pedida una sola vez por pestaña (no en cada búsqueda ni en cada
+            // recarga provocada por guardar una clave de API): si ya hay una posición en
+            // sessionStorage la reutilizamos directamente, sin volver a llamar al GPS.
+            const cached = useLocation ? getCachedPosition() : null;
+
+            if (cached) {
+                userPosition = cached;
+                map.setCenter(userPosition);
+                map.setZoom(14);
+                userLocationMarker = new google.maps.Marker({
+                    position: userPosition,
+                    map: map,
+                    title: "Tu ubicación actual",
+                    icon: {
+                        path: google.maps.SymbolPath.CIRCLE,
+                        scale: 8,
+                        fillColor: "#4285F4",
+                        fillOpacity: 1,
+                        strokeColor: "#ffffff",
+                        strokeWeight: 2,
+                    }
+                });
+                startNewSearch();
+            } else if (useLocation && navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
                     (position) => {
                         userPosition = {
                             lat: position.coords.latitude,
                             lng: position.coords.longitude,
                         };
+                        cachePosition(userPosition);
                         map.setCenter(userPosition);
                         map.setZoom(14);
 
@@ -652,6 +701,7 @@
                             lat: position.coords.latitude,
                             lng: position.coords.longitude,
                         };
+                        cachePosition(userPosition);
 
                         if (userLocationMarker) {
                             userLocationMarker.setMap(null);
@@ -764,7 +814,7 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
         }
 
         async function callGemini(apiKey, userText) {
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`;
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${encodeURIComponent(apiKey)}`;
             const res = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
