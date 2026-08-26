@@ -99,14 +99,14 @@
             font-size: 0.95rem; color: var(--gm-gray); margin-bottom: 8px; display: flex;
             justify-content: space-between; align-items: center;
         }
-        #globalMap { width: 100%; height: 260px; border-radius: 8px; border: 1px solid var(--gm-border); background-color: #e5e3df; }
+        #globalMap { width: 100%; height: 260px; border-radius: 8px; border: 1px solid var(--gm-border); background-color: var(--gm-map-placeholder); }
         
         .btn-geolocation {
             position: absolute;
             top: 52px;
             right: 20px;
             z-index: 5;
-            background-color: #ffffff;
+            background-color: var(--gm-card-bg);
             color: var(--gm-dark);
             border: 1px solid var(--gm-border);
             padding: 8px 12px;
@@ -120,7 +120,7 @@
             gap: 6px;
             transition: background-color 0.2s;
         }
-        .btn-geolocation:hover { background-color: #f1f3f4; }
+        .btn-geolocation:hover { background-color: var(--gm-hover-bg); }
         .btn-geolocation svg { width: 16px; height: 16px; fill: var(--gm-blue); }
 
         /* Panel de Filtros */
@@ -139,9 +139,9 @@
             background-color: var(--gm-blue); color: white; border: none; padding: 0 20px;
             border-radius: 8px; font-weight: 500; cursor: pointer; font-size: 0.95rem; white-space: nowrap;
         }
-        .btn-action:hover { background-color: #1557b0; }
-        .btn-sync { background-color: #188038; }
-        .btn-sync:hover { background-color: #13662d; }
+        .btn-action:hover { background-color: var(--gm-blue-hover); }
+        .btn-sync { background-color: var(--gm-green); }
+        .btn-sync:hover { background-color: var(--gm-green-hover); }
 
         .filter-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
 
@@ -150,7 +150,7 @@
             position: relative;
             border: 1px solid var(--gm-border);
             border-radius: 8px;
-            background: #fff;
+            background: var(--gm-card-bg);
         }
         .dropdown-toggle {
             padding: 12px 14px;
@@ -178,7 +178,7 @@
             top: 100%;
             left: 0;
             right: 0;
-            background: #fff;
+            background: var(--gm-card-bg);
             border: 1px solid var(--gm-border);
             border-top: none;
             border-radius: 0 0 8px 8px;
@@ -203,8 +203,8 @@
         }
         
         .reset-filter-btn {
-            background-color: #f1f3f4;
-            color: #d93025;
+            background-color: var(--gm-hover-bg);
+            color: var(--gm-red);
             border: 1px solid var(--gm-border);
             padding: 6px 10px;
             border-radius: 4px;
@@ -215,7 +215,7 @@
             margin-bottom: 4px;
             transition: background-color 0.2s;
         }
-        .reset-filter-btn:hover { background-color: #fce8e6; }
+        .reset-filter-btn:hover { background-color: var(--gm-red-bg); }
 
         .results-info { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; font-size: 0.9rem; color: var(--gm-gray); }
 
@@ -226,7 +226,7 @@
             display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 1px 3px rgba(60,64,67,0.1); transition: box-shadow 0.2s;
         }
         .venue-card:hover { box-shadow: 0 4px 8px rgba(60,64,67,0.15); }
-        .gm-photo { width: 100%; height: 160px; background-color: #f1f3f4; background-size: cover; background-position: center; border-bottom: 1px solid var(--gm-border); }
+        .gm-photo { width: 100%; height: 160px; background-color: var(--gm-hover-bg); background-size: cover; background-position: center; border-bottom: 1px solid var(--gm-border); }
         .venue-body { padding: 16px; display: flex; flex-direction: column; flex-grow: 1; }
         .gm-title { font-size: 1.15rem; font-weight: 500; color: var(--gm-dark); margin-bottom: 6px; }
         .gm-rating { font-size: 0.85rem; color: var(--gm-dark); margin-bottom: 6px; display: flex; align-items: center; gap: 4px; font-weight: 500; }
@@ -234,15 +234,15 @@
         .gm-address { font-size: 0.85rem; color: var(--gm-gray); margin-bottom: 12px; display: flex; align-items: flex-start; gap: 8px; }
         .gm-address svg { width: 16px; height: 16px; fill: var(--gm-gray); flex-shrink: 0; margin-top: 2px; }
         
-        .venue-footer { display: flex; gap: 10px; border-top: 1px solid var(--gm-border); padding: 12px 16px; background: #fafafa; }
+        .venue-footer { display: flex; gap: 10px; border-top: 1px solid var(--gm-border); padding: 12px 16px; background: var(--gm-footer-bg); }
         .gm-btn {
             flex: 1; text-align: center; padding: 8px 12px; border-radius: 18px; font-size: 0.85rem;
             font-weight: 500; text-decoration: none; display: inline-flex; justify-content: center; align-items: center; border: 1px solid var(--gm-border); transition: background-color 0.2s;
         }
         .btn-directions { background-color: var(--gm-blue); color: white; border: none; }
-        .btn-directions:hover { background-color: #1557b0; }
+        .btn-directions:hover { background-color: var(--gm-blue-hover); }
         .btn-outline { background-color: var(--gm-card-bg); color: var(--gm-blue); }
-        .btn-outline:hover { background-color: #f1f3f4; }
+        .btn-outline:hover { background-color: var(--gm-hover-bg); }
 
         /* Paginación Numérica Interactiva */
         .pagination-container {
@@ -253,7 +253,7 @@
             margin: 30px 0;
         }
         .btn-page {
-            background-color: #ffffff;
+            background-color: var(--gm-card-bg);
             border: 1px solid var(--gm-border);
             padding: 8px 20px;
             border-radius: 20px;
@@ -263,8 +263,8 @@
             box-shadow: 0 1px 2px rgba(60,64,67,0.1);
             transition: background-color 0.2s;
         }
-        .btn-page:hover:not(:disabled) { background-color: #f8f9fa; }
-        .btn-page:disabled { color: var(--gm-gray); background-color: #f1f3f4; cursor: not-allowed; border-color: #e5e3df; box-shadow: none; }
+        .btn-page:hover:not(:disabled) { background-color: var(--gm-hover-bg); }
+        .btn-page:disabled { color: var(--gm-gray); background-color: var(--gm-hover-bg); cursor: not-allowed; border-color: var(--gm-map-placeholder); box-shadow: none; }
         
         .page-indicator {
             font-size: 0.95rem;
@@ -276,11 +276,11 @@
 
         /* Botón y diálogo de configuración de API Keys */
         .btn-settings {
-            background-color: #fff; color: var(--gm-dark); border: 1px solid var(--gm-border);
+            background-color: var(--gm-card-bg); color: var(--gm-dark); border: 1px solid var(--gm-border);
             padding: 6px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 500;
             cursor: pointer; margin-top: 10px;
         }
-        .btn-settings:hover { background-color: #f1f3f4; }
+        .btn-settings:hover { background-color: var(--gm-hover-bg); }
 
         dialog.apikey-dialog {
             border: none; border-radius: 12px; padding: 24px; max-width: 480px; width: 90vw;
@@ -314,8 +314,8 @@
         .apikey-remember { display: flex; align-items: flex-start; gap: 8px; font-size: 0.82rem; color: var(--gm-dark); margin: 14px 0; cursor: pointer; }
 
         .apikey-dialog-actions { display: flex; gap: 10px; justify-content: flex-end; }
-        .btn-outline-dialog { background: #fff; color: var(--gm-gray); border: 1px solid var(--gm-border); }
-        .btn-outline-dialog:hover { background: #f1f3f4; }
+        .btn-outline-dialog { background: var(--gm-card-bg); color: var(--gm-gray); border: 1px solid var(--gm-border); }
+        .btn-outline-dialog:hover { background: var(--gm-hover-bg); }
 
         /* Toggle de ubicación */
         .location-toggle {
@@ -324,7 +324,7 @@
         }
 
         /* Panel de IA */
-        .ai-panel { background: #f0f6ff; border-color: #c6dafc; }
+        .ai-panel { background: var(--gm-ai-bg); border-color: var(--gm-ai-border); }
         .ai-panel-title { font-size: 1rem; margin-bottom: 12px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
         .ai-input-row { display: flex; gap: 10px; align-items: flex-start; }
         .ai-input-row textarea {
@@ -334,14 +334,14 @@
         .ai-input-row textarea:focus { border-color: var(--gm-blue); }
         .ai-input-buttons { display: flex; flex-direction: column; gap: 8px; }
         .btn-mic {
-            background-color: #fff; border: 1px solid var(--gm-border); border-radius: 8px;
+            background-color: var(--gm-card-bg); border: 1px solid var(--gm-border); border-radius: 8px;
             font-size: 1.1rem; width: 42px; height: 42px; cursor: pointer; transition: background-color 0.2s, border-color 0.2s;
         }
-        .btn-mic:hover { background-color: #f1f3f4; }
-        .btn-mic.listening { background-color: #fce8e6; border-color: #d93025; animation: mic-pulse 1s infinite; }
+        .btn-mic:hover { background-color: var(--gm-hover-bg); }
+        .btn-mic.listening { background-color: var(--gm-red-bg); border-color: var(--gm-red); animation: mic-pulse 1s infinite; }
         @keyframes mic-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
         .ai-status { font-size: 0.85rem; color: var(--gm-gray); margin-top: 8px; min-height: 1.2em; }
-        .ai-status.ai-error { color: #d93025; }
+        .ai-status.ai-error { color: var(--gm-red); }
     </style>
 </head>
 <body>
@@ -350,6 +350,7 @@
         <h1>Directorio Gastronómico con Geolocalización</h1>
         <p>Recomendaciones en directo basadas en proximidad GPS y mapas oficiales de Google.</p>
         <button class="btn-settings" onclick="openApiKeyDialog()">⚙️ Configurar API Keys</button>
+        <button class="btn-theme-toggle" onclick="toggleTheme()" title="Cambiar tema claro/oscuro" id="themeToggleBtn">🌙</button>
     </header>
 
     <!-- Diálogo de configuración: claves guardadas solo en este navegador (localStorage/sessionStorage),
@@ -398,7 +399,7 @@
     <main class="container">
         <!-- Mapa General API de Google Maps con Botón de Ubicación -->
         <section class="global-map-section">
-            <h2>Mapa de Resultados <span id="mapCounterBadge" style="font-size:0.75rem; background:#e8f0fe; color:var(--gm-blue); padding:2px 8px; border-radius:12px;">Esperando datos...</span></h2>
+            <h2>Mapa de Resultados <span id="mapCounterBadge" style="font-size:0.75rem; background:var(--gm-blue-bg); color:var(--gm-blue); padding:2px 8px; border-radius:12px;">Esperando datos...</span></h2>
             <button class="btn-geolocation" onclick="centerOnUserLocation()" title="Centrar mapa en mi posición actual">
                 <svg viewBox="0 0 24 24"><path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3c-.46-4.17-3.77-7.48-7.94-7.94V1h-2v2.06C6.83 3.52 3.52 6.83 3.06 11H1v2h2.06c.46 4.17 3.77 7.48 7.94 7.94V23h2v-2.06c4.17-.46 7.48-3.77 7.94-7.94H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>
                 Centrar en mi ubicación
@@ -499,7 +500,7 @@
 
         <div class="results-info">
             <span id="resultsCount">Esperando realizar búsqueda...</span>
-            <span style="color:#188038; font-weight:500;">✓ Sincronizado con Google Maps</span>
+            <span style="color:var(--gm-green); font-weight:500;">✓ Sincronizado con Google Maps</span>
         </div>
 
         <section id="venuesContainer" class="venues-grid">
@@ -562,6 +563,32 @@
         const LS_AI_PROVIDER = 'rb_aiProvider';
         const LS_REMEMBER = 'rb_rememberKeys';
         const LS_USE_LOCATION = 'rb_useLocation';
+        const LS_THEME = 'rb_theme';
+
+        // Tema: 'light' | 'dark' fuerzan el modo vía atributo data-theme; si no hay nada
+        // guardado, el CSS ya sigue el tema del sistema (prefers-color-scheme) por su cuenta.
+        function applyStoredTheme() {
+            const stored = localStorage.getItem(LS_THEME);
+            if (stored === 'light' || stored === 'dark') {
+                document.documentElement.setAttribute('data-theme', stored);
+            }
+            updateThemeToggleIcon();
+        }
+        function updateThemeToggleIcon() {
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark'
+                || (!document.documentElement.getAttribute('data-theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            document.getElementById('themeToggleBtn').textContent = isDark ? '☀️' : '🌙';
+        }
+        function toggleTheme() {
+            const current = document.documentElement.getAttribute('data-theme');
+            const isDarkNow = current === 'dark'
+                || (!current && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            const next = isDarkNow ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', next);
+            localStorage.setItem(LS_THEME, next);
+            updateThemeToggleIcon();
+        }
+        applyStoredTheme();
         const SS_CACHED_POSITION = 'rb_cachedPosition';
 
         // La posición se guarda en sessionStorage para que, aunque la página se recargue
@@ -661,7 +688,7 @@
             // tiene que pasar por saveApiKeys() -> location.reload(), nunca por una segunda
             // inyección directa del script.
             document.getElementById('globalMap').innerHTML =
-                `<div style="padding:20px; text-align:center; color:#d93025;">${escapeHtml(detail)} Revisa en Google Cloud Console que tengas habilitadas "Maps JavaScript API" y "Places API (New)", y que las restricciones de dominio incluyan este sitio.<br><br>Pulsa "⚙️ Configurar API Keys" arriba para corregirla.</div>`;
+                `<div style="padding:20px; text-align:center; color:var(--gm-red);">${escapeHtml(detail)} Revisa en Google Cloud Console que tengas habilitadas "Maps JavaScript API" y "Places API (New)", y que las restricciones de dominio incluyan este sitio.<br><br>Pulsa "⚙️ Configurar API Keys" arriba para corregirla.</div>`;
             document.getElementById('mapCounterBadge').textContent = 'Clave inválida';
             // Ya NO reabrimos el diálogo automáticamente aquí: si la clave sigue fallando,
             // esto se dispara en cada carga de página y el diálogo parece "no cerrarse
@@ -709,7 +736,7 @@
                     icon: {
                         path: google.maps.SymbolPath.CIRCLE,
                         scale: 8,
-                        fillColor: "#4285F4",
+                        fillColor: "#E4572E",
                         fillOpacity: 1,
                         strokeColor: "#ffffff",
                         strokeWeight: 2,
@@ -734,7 +761,7 @@
                             icon: {
                                 path: google.maps.SymbolPath.CIRCLE,
                                 scale: 8,
-                                fillColor: "#4285F4",
+                                fillColor: "#E4572E",
                                 fillOpacity: 1,
                                 strokeColor: "#ffffff",
                                 strokeWeight: 2,
@@ -784,7 +811,7 @@
                             icon: {
                                 path: google.maps.SymbolPath.CIRCLE,
                                 scale: 8,
-                                fillColor: "#4285F4",
+                                fillColor: "#E4572E",
                                 fillOpacity: 1,
                                 strokeColor: "#ffffff",
                                 strokeWeight: 2,
@@ -1210,7 +1237,7 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
                 }
                 const photoHtml = photoUrl
                     ? `<div class="gm-photo" style="background-image: url('${photoUrl}');"></div>`
-                    : `<div class="gm-photo" style="display:flex; align-items:center; justify-content:center; color:#9aa0a6;">Sin imagen</div>`;
+                    : `<div class="gm-photo" style="display:flex; align-items:center; justify-content:center; color:var(--gm-photo-empty-text);">Sin imagen</div>`;
 
                 let ratingHtml = '';
                 if (place.rating) {
