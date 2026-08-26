@@ -206,6 +206,49 @@
         }
 
         #loader { text-align: center; padding: 40px; color: var(--gm-gray); font-size: 1.1rem; display: none; grid-column: 1 / -1; }
+
+        /* Botón y diálogo de configuración de API Keys */
+        .btn-settings {
+            background-color: #fff; color: var(--gm-dark); border: 1px solid var(--gm-border);
+            padding: 6px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 500;
+            cursor: pointer; margin-top: 10px;
+        }
+        .btn-settings:hover { background-color: #f1f3f4; }
+
+        dialog.apikey-dialog {
+            border: none; border-radius: 12px; padding: 24px; max-width: 480px; width: 90vw;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+        }
+        dialog.apikey-dialog::backdrop { background: rgba(0,0,0,0.5); }
+        .apikey-dialog h2 { font-size: 1.2rem; margin-bottom: 8px; }
+        .apikey-intro { font-size: 0.85rem; color: var(--gm-gray); margin-bottom: 16px; }
+
+        details.apikey-field { border: 1px solid var(--gm-border); border-radius: 8px; margin-bottom: 12px; overflow: hidden; }
+        details.apikey-field summary {
+            padding: 12px 14px; cursor: pointer; font-weight: 500; font-size: 0.9rem; list-style: none;
+            display: flex; justify-content: space-between; align-items: center; gap: 8px;
+        }
+        details.apikey-field summary::-webkit-details-marker { display: none; }
+        details.apikey-field summary::after { content: "▼"; font-size: 0.7rem; color: var(--gm-gray); }
+        details.apikey-field[open] summary::after { content: "▲"; }
+        .apikey-status { font-size: 0.75rem; color: var(--gm-gray); font-weight: 400; }
+
+        .apikey-field-body { padding: 0 14px 14px 14px; display: flex; flex-direction: column; gap: 8px; }
+        .apikey-field-body label { font-size: 0.8rem; color: var(--gm-gray); font-weight: 500; }
+        .apikey-field-body input, .apikey-field-body select {
+            padding: 10px 12px; border: 1px solid var(--gm-border); border-radius: 6px; font-size: 0.9rem;
+        }
+        .apikey-toggle-visibility {
+            align-self: flex-start; background: none; border: none; color: var(--gm-blue);
+            font-size: 0.8rem; cursor: pointer; padding: 2px 0;
+        }
+        .apikey-help { font-size: 0.75rem; color: var(--gm-gray); margin: 0; }
+
+        .apikey-remember { display: flex; align-items: flex-start; gap: 8px; font-size: 0.82rem; color: var(--gm-dark); margin: 14px 0; cursor: pointer; }
+
+        .apikey-dialog-actions { display: flex; gap: 10px; justify-content: flex-end; }
+        .btn-outline-dialog { background: #fff; color: var(--gm-gray); border: 1px solid var(--gm-border); }
+        .btn-outline-dialog:hover { background: #f1f3f4; }
     </style>
 </head>
 <body>
@@ -213,7 +256,51 @@
     <header>
         <h1>Directorio Gastronómico con Geolocalización</h1>
         <p>Recomendaciones en directo basadas en proximidad GPS y mapas oficiales de Google.</p>
+        <button class="btn-settings" onclick="openApiKeyDialog()">⚙️ Configurar API Keys</button>
     </header>
+
+    <!-- Diálogo de configuración: claves guardadas solo en este navegador (localStorage/sessionStorage),
+         nunca se envían a ningún servidor propio del proyecto. -->
+    <dialog id="apiKeyDialog" class="apikey-dialog">
+        <h2>Configuración de claves API</h2>
+        <p class="apikey-intro">Estas claves se guardan solo en tu navegador y se usan directamente contra Google (y, en el futuro, contra el proveedor de IA que elijas). Uso personal, sin backend propio.</p>
+
+        <details class="apikey-field" id="detailsMapsKey">
+            <summary>🗺️ Google Maps <span class="apikey-status">(obligatoria)</span></summary>
+            <div class="apikey-field-body">
+                <label for="mapsApiKeyInput">Clave de Google Maps</label>
+                <input type="password" id="mapsApiKeyInput" placeholder="AIza...">
+                <button type="button" class="apikey-toggle-visibility" onclick="toggleKeyVisibility('mapsApiKeyInput', this)">👁️ Mostrar</button>
+                <p class="apikey-help">Necesaria para que el directorio funcione. Debe tener habilitadas "Maps JavaScript API" y "Places API (New)" en Google Cloud Console, y estar restringida a tu dominio.</p>
+            </div>
+        </details>
+
+        <details class="apikey-field" id="detailsAiKey">
+            <summary>🤖 Clave de IA <span class="apikey-status">(opcional, para funciones futuras)</span></summary>
+            <div class="apikey-field-body">
+                <label for="aiProviderSelect">Proveedor</label>
+                <select id="aiProviderSelect">
+                    <option value="gemini">Google Gemini</option>
+                    <option value="openai">OpenAI</option>
+                    <option value="other">Otro</option>
+                </select>
+                <label for="aiApiKeyInput">Clave de API</label>
+                <input type="password" id="aiApiKeyInput" placeholder="Clave del proveedor de IA elegido">
+                <button type="button" class="apikey-toggle-visibility" onclick="toggleKeyVisibility('aiApiKeyInput', this)">👁️ Mostrar</button>
+                <p class="apikey-help">De momento solo se guarda: todavía no hay ninguna función que la use en el directorio.</p>
+            </div>
+        </details>
+
+        <label class="apikey-remember">
+            <input type="checkbox" id="rememberKeysCheckbox">
+            Recordar estas claves en este navegador (localStorage). Si lo dejas sin marcar, solo se recuerdan mientras esta pestaña siga abierta.
+        </label>
+
+        <div class="apikey-dialog-actions">
+            <button type="button" class="btn-action btn-outline-dialog" onclick="closeApiKeyDialog()">Cancelar</button>
+            <button type="button" class="btn-action" onclick="saveApiKeys()">Guardar y continuar</button>
+        </div>
+    </dialog>
 
     <main class="container">
         <!-- Mapa General API de Google Maps con Botón de Ubicación -->
@@ -317,8 +404,9 @@
         </div>
     </main>
 
-    <!-- API GOOGLE MAPS -->
-    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBuk-YsjCSIfcaiTV-YmGdwv1qyK8QM9hQ&libraries=places&callback=initMap"></script>
+    <!-- La API de Google Maps ya NO se carga con una clave fija en el HTML: se inyecta en
+         tiempo de ejecución con la clave que el usuario introduce en el diálogo de configuración
+         (ver loadGoogleMapsScript más abajo). -->
 
     <script>
         let map;
@@ -346,6 +434,104 @@
             if (n === null || n === 0) return null;
             return n >= 3 ? 3 : n;
         }
+
+        // Evita inyectar HTML/JS desde datos que vienen de fuera (nombre o dirección de un
+        // local en Google Maps), antes de meterlos en innerHTML.
+        function escapeHtml(value) {
+            if (value === null || value === undefined) return '';
+            const div = document.createElement('div');
+            div.textContent = String(value);
+            return div.innerHTML;
+        }
+
+        // --- Gestión de claves API (Google Maps + IA reservada para el futuro) ---
+        // Las claves solo viven en este navegador: en localStorage si el usuario marca
+        // "recordar", o en sessionStorage (se borra al cerrar la pestaña) si no.
+        const LS_MAPS_KEY = 'rb_mapsApiKey';
+        const LS_AI_KEY = 'rb_aiApiKey';
+        const LS_AI_PROVIDER = 'rb_aiProvider';
+        const LS_REMEMBER = 'rb_rememberKeys';
+
+        function getStoredValue(key) {
+            return localStorage.getItem(key) || sessionStorage.getItem(key) || '';
+        }
+
+        function openApiKeyDialog() {
+            document.getElementById('mapsApiKeyInput').value = getStoredValue(LS_MAPS_KEY);
+            document.getElementById('aiApiKeyInput').value = getStoredValue(LS_AI_KEY);
+            const provider = getStoredValue(LS_AI_PROVIDER);
+            if (provider) document.getElementById('aiProviderSelect').value = provider;
+            document.getElementById('rememberKeysCheckbox').checked = localStorage.getItem(LS_REMEMBER) === 'true';
+            document.getElementById('apiKeyDialog').showModal();
+        }
+
+        function closeApiKeyDialog() {
+            document.getElementById('apiKeyDialog').close();
+        }
+
+        function toggleKeyVisibility(inputId, btn) {
+            const input = document.getElementById(inputId);
+            const showing = input.type === 'text';
+            input.type = showing ? 'password' : 'text';
+            btn.textContent = showing ? '👁️ Mostrar' : '🙈 Ocultar';
+        }
+
+        function saveApiKeys() {
+            const mapsKey = document.getElementById('mapsApiKeyInput').value.trim();
+            const aiKey = document.getElementById('aiApiKeyInput').value.trim();
+            const aiProvider = document.getElementById('aiProviderSelect').value;
+            const remember = document.getElementById('rememberKeysCheckbox').checked;
+
+            if (!mapsKey) {
+                alert('La clave de Google Maps es obligatoria para que el directorio funcione.');
+                return;
+            }
+
+            [LS_MAPS_KEY, LS_AI_KEY, LS_AI_PROVIDER].forEach(k => {
+                localStorage.removeItem(k);
+                sessionStorage.removeItem(k);
+            });
+
+            const store = remember ? localStorage : sessionStorage;
+            store.setItem(LS_MAPS_KEY, mapsKey);
+            if (aiKey) store.setItem(LS_AI_KEY, aiKey);
+            store.setItem(LS_AI_PROVIDER, aiProvider);
+            localStorage.setItem(LS_REMEMBER, remember ? 'true' : 'false');
+
+            // Recargamos la página en vez de reinyectar el script de Maps: cargar la API de
+            // Google Maps dos veces en la misma página no está soportado y rompe el mapa.
+            location.reload();
+        }
+
+        let mapsScriptRequested = false;
+        function loadGoogleMapsScript(apiKey) {
+            if (mapsScriptRequested) return;
+            mapsScriptRequested = true;
+
+            const script = document.createElement('script');
+            script.id = 'googleMapsScript';
+            script.async = true;
+            script.defer = true;
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&libraries=places&callback=initMap`;
+            document.head.appendChild(script);
+        }
+
+        // Mensaje común para cualquier problema de clave, venga de gm_authFailure (fallo al
+        // cargar el script) o de un error al llamar a Place.searchByText (la clave carga el
+        // script pero no tiene Places API (New) habilitada, o es directamente inválida).
+        function showApiKeyProblem(detail) {
+            mapsScriptRequested = false;
+            document.getElementById('globalMap').innerHTML =
+                `<div style="padding:20px; text-align:center; color:#d93025;">${escapeHtml(detail)} Revisa en Google Cloud Console que tengas habilitadas "Maps JavaScript API" y "Places API (New)", y que las restricciones de dominio incluyan este sitio.</div>`;
+            document.getElementById('mapCounterBadge').textContent = 'Clave inválida';
+            openApiKeyDialog();
+        }
+
+        // Google llama a esta función global si la clave no es válida, le faltan permisos
+        // (Maps JavaScript API / Places API New) o las restricciones de dominio no cuadran.
+        window.gm_authFailure = function () {
+            showApiKeyProblem('La clave de Google Maps no es válida o no tiene permisos suficientes.');
+        };
 
         function initMap() {
             userPosition = DEFAULT_LOCATION; 
@@ -528,7 +714,17 @@
                 handlePlacesResponse(places);
             } catch (error) {
                 console.error('Error en Place.searchByText:', error);
-                handlePlacesResponse([]);
+                const message = (error && error.message) || '';
+                const isKeyProblem = /api key|permission|forbidden|invalid_argument/i.test(message)
+                    || (error && (error.code === 'INVALID_ARGUMENT' || error.code === 'PERMISSION_DENIED'));
+                if (isKeyProblem) {
+                    document.getElementById('venuesContainer').innerHTML = '';
+                    document.getElementById('resultsCount').textContent = 'Clave de API inválida';
+                    document.getElementById('paginationControls').style.display = 'none';
+                    showApiKeyProblem('La clave de Google Maps no es válida, o le falta habilitar "Places API (New)".');
+                } else {
+                    handlePlacesResponse([]);
+                }
             }
         }
 
@@ -671,20 +867,20 @@
                     distText = `Aprox. ${(place.calculatedDistance / 1000).toFixed(2)} km`;
                 }
 
-                const mapUrl = `https://www.google.com/maps/place/?q=place_id:${place.id}`;
-                const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination_place_id=${place.id}`;
+                const mapUrl = `https://www.google.com/maps/place/?q=place_id:${encodeURIComponent(place.id)}`;
+                const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination_place_id=${encodeURIComponent(place.id)}`;
 
                 card.innerHTML = `
                     ${photoHtml}
                     <div class="venue-body">
-                        <h3 class="gm-title">${place.displayName}</h3>
+                        <h3 class="gm-title">${escapeHtml(place.displayName)}</h3>
                         <div class="gm-rating">
                             ${ratingHtml} ${priceStr}
                         </div>
                         <div class="gm-distance-tag">📍 ${distText} de ti</div>
                         <div class="gm-address">
                             <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
-                            <span>${place.formattedAddress}</span>
+                            <span>${escapeHtml(place.formattedAddress)}</span>
                         </div>
                     </div>
                     <div class="venue-footer">
@@ -717,9 +913,9 @@
                 google.maps.event.addListener(marker, 'click', () => {
                     infoWindow.setContent(`
                         <div style="padding: 5px;">
-                            <strong>${place.displayName}</strong><br>
-                            ${place.formattedAddress}<br>
-                            <a href="https://www.google.com/maps/place/?q=place_id:${place.id}" target="_blank" style="color:var(--gm-blue); text-decoration:none; display:block; margin-top:5px;">Abrir ficha completa</a>
+                            <strong>${escapeHtml(place.displayName)}</strong><br>
+                            ${escapeHtml(place.formattedAddress)}<br>
+                            <a href="https://www.google.com/maps/place/?q=place_id:${encodeURIComponent(place.id)}" target="_blank" style="color:var(--gm-blue); text-decoration:none; display:block; margin-top:5px;">Abrir ficha completa</a>
                         </div>
                     `);
                     infoWindow.open(map, marker);
@@ -745,6 +941,19 @@
         document.getElementById('searchInput').addEventListener('keypress', function (e) {
             if (e.key === 'Enter') startNewSearch();
         });
+
+        // Arranque: si ya hay una clave de Maps guardada, cargamos el mapa directamente;
+        // si no, mostramos el diálogo de configuración (la app no puede hacer nada sin clave).
+        (function bootstrapApiKeys() {
+            const savedMapsKey = getStoredValue(LS_MAPS_KEY);
+            if (savedMapsKey) {
+                loadGoogleMapsScript(savedMapsKey);
+            } else {
+                document.getElementById('globalMap').innerHTML =
+                    '<div style="padding:20px; text-align:center; color:var(--gm-gray);">Introduce tu clave de Google Maps en "⚙️ Configurar API Keys" para empezar a usar el directorio.</div>';
+                openApiKeyDialog();
+            }
+        })();
     </script>
 </body>
 </html>
