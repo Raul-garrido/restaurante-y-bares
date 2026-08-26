@@ -12,24 +12,25 @@
            con soporte de modo oscuro. Los nombres de variable (--gm-*) se mantienen por no
            tocar cada uso en el CSS, pero los valores ya no imitan el estilo de Google Maps. */
         :root {
-            --gm-blue: #E4572E;
-            --gm-blue-hover: #C7431B;
-            --gm-dark: #2B241E;
+            --gm-blue: #0F766E;
+            --gm-blue-hover: #0B5D57;
+            --gm-hero-gradient-end: #14B8A6;
+            --gm-dark: #211D19;
             --gm-gray: #8A7B6C;
             --gm-bg: #FBF7F2;
             --gm-border: #E8DFD5;
             --gm-card-bg: #FFFFFF;
-            --gm-yellow: #F4A620;
+            --gm-yellow: #E0A527;
             --gm-hover-bg: #F5EDE4;
             --gm-green: #3A8F5B;
             --gm-green-hover: #2F7549;
             --gm-red: #D64550;
             --gm-red-bg: #FBE7E5;
-            --gm-blue-bg: #FBE9E2;
+            --gm-blue-bg: #E1F3F1;
             --gm-map-placeholder: #EDE3D8;
             --gm-footer-bg: #FAF5EF;
-            --gm-ai-bg: #FFF3E9;
-            --gm-ai-border: #F4D4B8;
+            --gm-ai-bg: #EAF6F5;
+            --gm-ai-border: #BFE3DF;
             --gm-photo-empty-text: #A99A8A;
         }
         /* Modo oscuro neutro (grises reales, no marrón tintado) con las tarjetas
@@ -37,8 +38,9 @@
            verdad, no solo por un borde casi invisible. Acentos saturados (naranja,
            verde, rojo) para que resalten sobre el gris neutro. */
         :root[data-theme="dark"] {
-            --gm-blue: #FF7A45;
-            --gm-blue-hover: #FF9066;
+            --gm-blue: #2DD4BF;
+            --gm-blue-hover: #5EEAD4;
+            --gm-hero-gradient-end: #0F766E;
             --gm-dark: #EDEDED;
             --gm-gray: #A3A3A3;
             --gm-bg: #121212;
@@ -50,17 +52,18 @@
             --gm-green-hover: #6EE7A0;
             --gm-red: #FF6B6B;
             --gm-red-bg: #3D1F1F;
-            --gm-blue-bg: #3D2818;
+            --gm-blue-bg: #123B37;
             --gm-map-placeholder: #1A1A1A;
             --gm-footer-bg: #181818;
-            --gm-ai-bg: #241A12;
-            --gm-ai-border: #4A3826;
+            --gm-ai-bg: #12302D;
+            --gm-ai-border: #1F4D48;
             --gm-photo-empty-text: #6B6B6B;
         }
         @media (prefers-color-scheme: dark) {
             :root:not([data-theme="light"]) {
-                --gm-blue: #FF7A45;
-                --gm-blue-hover: #FF9066;
+                --gm-blue: #2DD4BF;
+                --gm-blue-hover: #5EEAD4;
+                --gm-hero-gradient-end: #0F766E;
                 --gm-dark: #EDEDED;
                 --gm-gray: #A3A3A3;
                 --gm-bg: #121212;
@@ -72,11 +75,11 @@
                 --gm-green-hover: #6EE7A0;
                 --gm-red: #FF6B6B;
                 --gm-red-bg: #3D1F1F;
-                --gm-blue-bg: #3D2818;
+                --gm-blue-bg: #123B37;
                 --gm-map-placeholder: #1A1A1A;
                 --gm-footer-bg: #181818;
-                --gm-ai-bg: #241A12;
-                --gm-ai-border: #4A3826;
+                --gm-ai-bg: #12302D;
+                --gm-ai-border: #1F4D48;
                 --gm-photo-empty-text: #6B6B6B;
             }
         }
@@ -89,7 +92,7 @@
         /* Cabecera tipo app: banda de color a todo lo ancho, con el buscador de IA
            flotando encima del borde inferior — nada de todo apilado en cajas iguales. */
         .hero {
-            background: linear-gradient(135deg, var(--gm-blue) 0%, #ff8f5e 100%);
+            background: linear-gradient(135deg, var(--gm-blue) 0%, var(--gm-hero-gradient-end) 100%);
             padding: 26px 20px 70px 20px; position: relative; color: #fff;
         }
         .hero-top { max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
@@ -1112,7 +1115,7 @@
                     icon: {
                         path: google.maps.SymbolPath.CIRCLE,
                         scale: 8,
-                        fillColor: "#E4572E",
+                        fillColor: "#0F766E",
                         fillOpacity: 1,
                         strokeColor: "#ffffff",
                         strokeWeight: 2,
@@ -1137,7 +1140,7 @@
                             icon: {
                                 path: google.maps.SymbolPath.CIRCLE,
                                 scale: 8,
-                                fillColor: "#E4572E",
+                                fillColor: "#0F766E",
                                 fillOpacity: 1,
                                 strokeColor: "#ffffff",
                                 strokeWeight: 2,
@@ -1187,7 +1190,7 @@
                             icon: {
                                 path: google.maps.SymbolPath.CIRCLE,
                                 scale: 8,
-                                fillColor: "#E4572E",
+                                fillColor: "#0F766E",
                                 fillOpacity: 1,
                                 strokeColor: "#ffffff",
                                 strokeWeight: 2,
