@@ -683,6 +683,73 @@
             return localStorage.getItem(key) || sessionStorage.getItem(key) || '';
         }
 
+        // --- Caché de búsquedas (ahorra peticiones facturables al repetir la misma
+        // búsqueda en poco tiempo, p.ej. al recargar varias veces mientras se prueba) ---
+        const SEARCH_CACHE_PREFIX = 'rb_searchCache_';
+        const SEARCH_CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutos
+
+        function buildSearchCacheKey(textQuery, skipLocationBias) {
+            if (skipLocationBias) return `${SEARCH_CACHE_PREFIX}nobias|${textQuery}`;
+            // Redondeado a ~100 m para que un ligero temblor del GPS no invalide el caché.
+            const lat = Math.round(userPosition.lat * 1000) / 1000;
+            const lng = Math.round(userPosition.lng * 1000) / 1000;
+            return `${SEARCH_CACHE_PREFIX}bias:${lat},${lng}|${textQuery}`;
+        }
+
+        function readSearchCache(key) {
+            try {
+                const raw = sessionStorage.getItem(key);
+                if (!raw) return null;
+                const entry = JSON.parse(raw);
+                if (Date.now() - entry.savedAt > SEARCH_CACHE_TTL_MS) {
+                    sessionStorage.removeItem(key);
+                    return null;
+                }
+                return entry.places;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function writeSearchCache(key, plainPlaces) {
+            try {
+                sessionStorage.setItem(key, JSON.stringify({ savedAt: Date.now(), places: plainPlaces }));
+            } catch (e) {
+                // sessionStorage lleno o similar: no pasa nada, simplemente no se cachea.
+            }
+        }
+
+        // Convierte un Place "vivo" (con getters del prototipo y un Photo con getURI) en un
+        // objeto plano y serializable, resolviendo la foto a una URL fija de una vez.
+        function toPlainPlace(place) {
+            const loc = place.location;
+            const lat = typeof loc.lat === 'function' ? loc.lat() : loc.lat;
+            const lng = typeof loc.lng === 'function' ? loc.lng() : loc.lng;
+            let photoUrl = null;
+            if (place.photos && place.photos.length > 0) {
+                photoUrl = place.photos[0].getURI({ maxWidth: 500, maxHeight: 400 });
+            }
+            return {
+                id: place.id,
+                displayName: place.displayName,
+                formattedAddress: place.formattedAddress,
+                rating: place.rating || null,
+                userRatingCount: place.userRatingCount || null,
+                priceLevel: place.priceLevel || null,
+                location: { lat, lng },
+                photoUrl
+            };
+        }
+
+        // Devuelve la URL de foto tanto si viene de un Place vivo (place.photos) como de
+        // uno ya cacheado/plano (place.photoUrl).
+        function getPlacePhotoUrl(place, maxWidth, maxHeight) {
+            if (place.photos && place.photos.length > 0) {
+                return place.photos[0].getURI({ maxWidth, maxHeight });
+            }
+            return place.photoUrl || '';
+        }
+
         // --- Favoritos: solo texto (nombre, direccion, rating, precio, id), sin foto ---
         // Las URLs de fotos de Google caducan; guardarlas rompería los favoritos con el
         // tiempo. Para ver la foto real, el enlace "Ver en Maps" siempre funciona.
@@ -778,10 +845,7 @@
             }
 
             const place = filteredPlaces[swipeIndex];
-            let photoUrl = '';
-            if (place.photos && place.photos.length > 0) {
-                photoUrl = place.photos[0].getURI({ maxWidth: 500, maxHeight: 400 });
-            }
+            const photoUrl = getPlacePhotoUrl(place, 500, 400);
             const photoHtml = photoUrl
                 ? `<div class="swipe-card-photo" style="background-image:url('${photoUrl}');"></div>`
                 : `<div class="swipe-card-photo" style="display:flex;align-items:center;justify-content:center;color:var(--gm-photo-empty-text);">Sin imagen</div>`;
@@ -1338,6 +1402,13 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
                 textQuery = queryParts.join(" ");
             }
 
+            const cacheKey = buildSearchCacheKey(textQuery, options.skipLocationBias);
+            const cached = readSearchCache(cacheKey);
+            if (cached) {
+                handlePlacesResponse(cached);
+                return;
+            }
+
             // Place.searchByText (Places API New): basado en promesas, sin paginación
             // por token/nextPage — máximo 20 resultados por llamada (maxResultCount).
             const request = {
@@ -1354,7 +1425,9 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
 
             try {
                 const { places } = await google.maps.places.Place.searchByText(request);
-                handlePlacesResponse(places);
+                const plainPlaces = places.map(toPlainPlace);
+                writeSearchCache(cacheKey, plainPlaces);
+                handlePlacesResponse(plainPlaces);
             } catch (error) {
                 console.error('Error en Place.searchByText:', error);
                 const message = (error && error.message) || '';
@@ -1485,10 +1558,7 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
                 const card = document.createElement('div');
                 card.className = 'venue-card';
 
-                let photoUrl = '';
-                if (place.photos && place.photos.length > 0) {
-                    photoUrl = place.photos[0].getURI({ maxWidth: 400, maxHeight: 200 });
-                }
+                const photoUrl = getPlacePhotoUrl(place, 400, 200);
                 const photoHtml = photoUrl
                     ? `<div class="gm-photo" style="background-image: url('${photoUrl}');"></div>`
                     : `<div class="gm-photo" style="display:flex; align-items:center; justify-content:center; color:var(--gm-photo-empty-text);">Sin imagen</div>`;
