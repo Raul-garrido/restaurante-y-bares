@@ -249,6 +249,32 @@
         .apikey-dialog-actions { display: flex; gap: 10px; justify-content: flex-end; }
         .btn-outline-dialog { background: #fff; color: var(--gm-gray); border: 1px solid var(--gm-border); }
         .btn-outline-dialog:hover { background: #f1f3f4; }
+
+        /* Toggle de ubicación */
+        .location-toggle {
+            display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: var(--gm-gray);
+            margin-top: 10px; cursor: pointer;
+        }
+
+        /* Panel de IA */
+        .ai-panel { background: #f0f6ff; border-color: #c6dafc; }
+        .ai-panel-title { font-size: 1rem; margin-bottom: 12px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
+        .ai-input-row { display: flex; gap: 10px; align-items: flex-start; }
+        .ai-input-row textarea {
+            flex-grow: 1; padding: 12px 16px; font-size: 0.95rem; border: 1px solid var(--gm-border);
+            border-radius: 8px; outline: none; resize: vertical; font-family: inherit; transition: border-color 0.2s;
+        }
+        .ai-input-row textarea:focus { border-color: var(--gm-blue); }
+        .ai-input-buttons { display: flex; flex-direction: column; gap: 8px; }
+        .btn-mic {
+            background-color: #fff; border: 1px solid var(--gm-border); border-radius: 8px;
+            font-size: 1.1rem; width: 42px; height: 42px; cursor: pointer; transition: background-color 0.2s, border-color 0.2s;
+        }
+        .btn-mic:hover { background-color: #f1f3f4; }
+        .btn-mic.listening { background-color: #fce8e6; border-color: #d93025; animation: mic-pulse 1s infinite; }
+        @keyframes mic-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .ai-status { font-size: 0.85rem; color: var(--gm-gray); margin-top: 8px; min-height: 1.2em; }
+        .ai-status.ai-error { color: #d93025; }
     </style>
 </head>
 <body>
@@ -311,6 +337,23 @@
                 Centrar en mi ubicación
             </button>
             <div id="globalMap"></div>
+            <label class="location-toggle">
+                <input type="checkbox" id="useLocationCheckbox" checked onchange="onUseLocationToggle()">
+                Usar mi ubicación GPS (se pide una sola vez; desmárcalo si prefieres buscar solo por localidad)
+            </label>
+        </section>
+
+        <!-- Panel de búsqueda por IA -->
+        <section class="filters-panel ai-panel">
+            <h2 class="ai-panel-title">🤖 Pregunta a la IA <span class="apikey-status">(ej: "quiero tapas cerca de mí", "comida china en Alcalá de Henares")</span></h2>
+            <div class="ai-input-row">
+                <textarea id="aiQueryInput" rows="2" placeholder='Escribe o dicta lo que te apetece comer y dónde, por ejemplo: "unas buenas tapas cerca de mí" o "comida china en Alcalá de Henares"'></textarea>
+                <div class="ai-input-buttons">
+                    <button type="button" class="btn-mic" id="aiMicBtn" onclick="toggleMic()" title="Dictar por voz">🎤</button>
+                    <button type="button" class="btn-action" onclick="runAiSearch()">Preguntar</button>
+                </div>
+            </div>
+            <p class="ai-status" id="aiStatus"></p>
         </section>
 
         <!-- Panel de Filtros -->
@@ -451,6 +494,7 @@
         const LS_AI_KEY = 'rb_aiApiKey';
         const LS_AI_PROVIDER = 'rb_aiProvider';
         const LS_REMEMBER = 'rb_rememberKeys';
+        const LS_USE_LOCATION = 'rb_useLocation';
 
         function getStoredValue(key) {
             return localStorage.getItem(key) || sessionStorage.getItem(key) || '';
@@ -546,8 +590,15 @@
                 }
             });
             infoWindow = new google.maps.InfoWindow();
-            
-            if (navigator.geolocation) {
+
+            const useLocationCheckbox = document.getElementById('useLocationCheckbox');
+            const useLocation = localStorage.getItem(LS_USE_LOCATION) !== 'false';
+            useLocationCheckbox.checked = useLocation;
+
+            // Ubicación pedida una sola vez al cargar (no en cada búsqueda): userPosition
+            // se reutiliza después para todas las búsquedas "cerca de mí", tanto manuales
+            // como las que dispare la IA.
+            if (useLocation && navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
                     (position) => {
                         userPosition = {
@@ -556,7 +607,7 @@
                         };
                         map.setCenter(userPosition);
                         map.setZoom(14);
-                        
+
                         userLocationMarker = new google.maps.Marker({
                             position: userPosition,
                             map: map,
@@ -579,6 +630,17 @@
                 );
             } else {
                 startNewSearch();
+            }
+        }
+
+        function onUseLocationToggle() {
+            const enabled = document.getElementById('useLocationCheckbox').checked;
+            localStorage.setItem(LS_USE_LOCATION, enabled ? 'true' : 'false');
+            if (!enabled && userLocationMarker) {
+                userLocationMarker.setMap(null);
+                userLocationMarker = null;
+            } else if (enabled) {
+                centerOnUserLocation();
             }
         }
 
@@ -674,7 +736,176 @@
             setTimeout(() => { btn.textContent = "Actualizar Datos"; }, 800);
         }
 
-        async function startNewSearch() {
+        // --- Búsqueda por IA en lenguaje natural ---
+        // La IA solo traduce la frase del usuario a los mismos parámetros de búsqueda que ya
+        // usan los filtros manuales (tipo, cocina, precio, valoración, texto libre) más una
+        // decisión de si centrar en el GPS del usuario o dejar que Google interprete una
+        // localidad distinta a partir del propio texto. No hay geocoding aparte: Google
+        // Places (New) ya entiende nombres de localidad dentro de textQuery.
+        const AI_SYSTEM_PROMPT = `Eres un asistente que convierte peticiones en español sobre restaurantes y bares en parámetros de búsqueda para Google Places.
+Responde ÚNICAMENTE con JSON válido (sin markdown, sin texto extra), con esta forma exacta:
+{
+  "textQuery": string,           // texto de búsqueda natural en español para Google Places: tipo de cocina/local + localidad si se menciona una
+  "useCurrentLocation": boolean, // true si hay que centrar en la ubicación GPS del usuario ("cerca de mí"); false si se menciona una localidad distinta a la suya
+  "type": string[],              // subconjunto de ["restaurant","bar","cafe"], vacío si no se menciona
+  "cuisine": string[],           // subconjunto de ["Mediterránea","Americana","Italiana","Asiática","Tapas"], vacío si no se menciona
+  "maxPriceLevel": number|null,  // 1 (económico), 2 (moderado) o 3 (elevado) si se menciona presupuesto, si no null
+  "minRating": number|null       // 3.5, 4.0 o 4.5 si se pide buena valoración, si no null
+}
+Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsqueda, así que no hace falta pedir más.`;
+
+        function setAiStatus(text, isError) {
+            const el = document.getElementById('aiStatus');
+            el.textContent = text || '';
+            el.classList.toggle('ai-error', !!isError);
+        }
+
+        async function callGemini(apiKey, userText) {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`;
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    systemInstruction: { parts: [{ text: AI_SYSTEM_PROMPT }] },
+                    contents: [{ role: 'user', parts: [{ text: userText }] }],
+                    generationConfig: { responseMimeType: 'application/json' }
+                })
+            });
+            if (!res.ok) {
+                const errBody = await res.text();
+                throw new Error(`Gemini (${res.status}): ${errBody.slice(0, 200)}`);
+            }
+            const data = await res.json();
+            const text = data.candidates && data.candidates[0] && data.candidates[0].content
+                && data.candidates[0].content.parts && data.candidates[0].content.parts[0]
+                && data.candidates[0].content.parts[0].text;
+            if (!text) throw new Error('Respuesta de Gemini vacía o inesperada.');
+            return JSON.parse(text);
+        }
+
+        // También usada para el proveedor "other": muchas APIs de terceros son compatibles
+        // con el formato de chat completions de OpenAI.
+        async function callOpenAiCompatible(apiKey, userText) {
+            const res = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                },
+                body: JSON.stringify({
+                    model: 'gpt-4o-mini',
+                    messages: [
+                        { role: 'system', content: AI_SYSTEM_PROMPT },
+                        { role: 'user', content: userText }
+                    ],
+                    response_format: { type: 'json_object' }
+                })
+            });
+            if (!res.ok) {
+                const errBody = await res.text();
+                throw new Error(`OpenAI (${res.status}): ${errBody.slice(0, 200)}`);
+            }
+            const data = await res.json();
+            const text = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+            if (!text) throw new Error('Respuesta de OpenAI vacía o inesperada.');
+            return JSON.parse(text);
+        }
+
+        function applyAiFilters(parsed) {
+            document.querySelectorAll('#typeCheckboxes input[type="checkbox"]').forEach(cb => {
+                cb.checked = Array.isArray(parsed.type) && parsed.type.includes(cb.value);
+            });
+            document.querySelectorAll('#cuisineCheckboxes input[type="checkbox"]').forEach(cb => {
+                cb.checked = Array.isArray(parsed.cuisine) && parsed.cuisine.includes(cb.value);
+            });
+            document.querySelectorAll('#priceCheckboxes input[type="checkbox"]').forEach(cb => {
+                cb.checked = parsed.maxPriceLevel != null && Number(cb.value) <= Number(parsed.maxPriceLevel);
+            });
+            document.querySelectorAll('#ratingCheckboxes input[type="checkbox"]').forEach(cb => {
+                cb.checked = parsed.minRating != null && Number(cb.value) === Number(parsed.minRating);
+            });
+            document.getElementById('searchInput').value = parsed.textQuery || '';
+        }
+
+        async function runAiSearch() {
+            const text = document.getElementById('aiQueryInput').value.trim();
+            if (!text) return;
+
+            const aiKey = getStoredValue(LS_AI_KEY);
+            const provider = getStoredValue(LS_AI_PROVIDER) || 'gemini';
+
+            if (!aiKey) {
+                setAiStatus('Añade tu clave de IA en "⚙️ Configurar API Keys" para usar esta función.', true);
+                openApiKeyDialog();
+                document.getElementById('detailsAiKey').open = true;
+                return;
+            }
+
+            setAiStatus('Pensando...');
+            try {
+                const parsed = provider === 'openai' || provider === 'other'
+                    ? await callOpenAiCompatible(aiKey, text)
+                    : await callGemini(aiKey, text);
+
+                applyAiFilters(parsed);
+                await startNewSearch({
+                    textQueryOverride: parsed.textQuery,
+                    skipLocationBias: parsed.useCurrentLocation === false
+                });
+                setAiStatus('');
+            } catch (error) {
+                console.error('Error consultando a la IA:', error);
+                setAiStatus('No se pudo interpretar la petición: ' + error.message, true);
+            }
+        }
+
+        // Dictado por voz (Web Speech API): solo disponible en navegadores basados en
+        // Chromium (Chrome, Edge, Android) con conexión https o localhost.
+        let speechRecognition = null;
+        function toggleMic() {
+            const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognitionCtor) {
+                alert('Tu navegador no soporta dictado por voz. Prueba en Chrome o Edge de escritorio o Android.');
+                return;
+            }
+
+            const micBtn = document.getElementById('aiMicBtn');
+
+            if (speechRecognition) {
+                speechRecognition.stop();
+                return;
+            }
+
+            speechRecognition = new SpeechRecognitionCtor();
+            speechRecognition.lang = 'es-ES';
+            speechRecognition.continuous = false;
+            speechRecognition.interimResults = false;
+
+            speechRecognition.onstart = () => micBtn.classList.add('listening');
+            speechRecognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                document.getElementById('aiQueryInput').value = transcript;
+            };
+            speechRecognition.onerror = (event) => {
+                console.error('Error de reconocimiento de voz:', event.error);
+                setAiStatus('No se pudo escuchar el micrófono (' + event.error + ').', true);
+            };
+            speechRecognition.onend = () => {
+                micBtn.classList.remove('listening');
+                speechRecognition = null;
+            };
+
+            speechRecognition.start();
+        }
+
+        // options.textQueryOverride: texto de búsqueda ya construido por la IA (sustituye
+        //   al que se arma normalmente a partir de los checkboxes + el campo de texto).
+        // options.skipLocationBias: true cuando la IA detecta una localidad distinta a la
+        //   del usuario (p.ej. "comida china en Alcalá de Henares" sin estar allí) — así
+        //   Google interpreta la localidad a partir del propio texto en vez de sesgar la
+        //   búsqueda hacia la posición GPS actual.
+        async function startNewSearch(options) {
+            options = options || {};
             if (!window.google || !google.maps.places || !google.maps.places.Place) return;
 
             document.getElementById('venuesContainer').innerHTML = '<div id="loader" style="display:block;">Consultando a Google Maps... Por favor, espera.</div>';
@@ -686,28 +917,34 @@
             filteredPlaces = [];
             currentPageIndex = 0;
 
-            const textInput = document.getElementById('searchInput').value.trim();
-            const selectedTypes = getCheckedValues('typeCheckboxes');
-            const selectedCuisines = getCheckedValues('cuisineCheckboxes');
+            let textQuery = options.textQueryOverride;
+            if (!textQuery) {
+                const textInput = document.getElementById('searchInput').value.trim();
+                const selectedTypes = getCheckedValues('typeCheckboxes');
+                const selectedCuisines = getCheckedValues('cuisineCheckboxes');
 
-            let queryParts = [];
-            if (selectedCuisines.length > 0) queryParts.push(selectedCuisines.join(" o "));
-            if (selectedTypes.length > 0) queryParts.push(selectedTypes.join(" "));
-            else if (queryParts.length === 0) queryParts.push("Restaurantes y bares recomendados");
+                let queryParts = [];
+                if (selectedCuisines.length > 0) queryParts.push(selectedCuisines.join(" o "));
+                if (selectedTypes.length > 0) queryParts.push(selectedTypes.join(" "));
+                else if (queryParts.length === 0) queryParts.push("Restaurantes y bares recomendados");
 
-            if (textInput) queryParts.push(textInput);
+                if (textInput) queryParts.push(textInput);
+                textQuery = queryParts.join(" ");
+            }
 
             // Place.searchByText (Places API New): basado en promesas, sin paginación
             // por token/nextPage — máximo 20 resultados por llamada (maxResultCount).
             const request = {
-                textQuery: queryParts.join(" "),
+                textQuery: textQuery,
                 fields: ['id', 'displayName', 'formattedAddress', 'location', 'rating', 'userRatingCount', 'priceLevel', 'photos'],
-                locationBias: {
-                    center: userPosition,
-                    radius: 10000,
-                },
                 maxResultCount: 20,
             };
+            if (!options.skipLocationBias) {
+                request.locationBias = {
+                    center: userPosition,
+                    radius: 10000,
+                };
+            }
 
             try {
                 const { places } = await google.maps.places.Place.searchByText(request);
