@@ -367,12 +367,16 @@
             -webkit-box-orient: vertical; overflow: hidden;
         }
         .gm-rating { font-size: 0.75rem; color: var(--gm-gray); margin-bottom: 4px; }
+        /* Tipo/especialidad del local (hamburguesería, asiática, tapas...) devuelto por
+           Google como primaryTypeDisplayName -- una etiqueta pequeña, no un texto más. */
+        .gm-specialty {
+            display: inline-block; font-size: 0.68rem; font-weight: 600; color: var(--gm-blue-hover);
+            background-color: var(--gm-blue-bg); padding: 2px 8px; border-radius: 10px; margin-bottom: 4px;
+        }
         .gm-address {
             font-size: 0.72rem; color: var(--gm-gray); margin-bottom: 8px; display: -webkit-box;
             -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;
         }
-        .gm-address svg { display: none; }
-
         .venue-footer { display: flex; gap: 6px; padding: 0 10px 10px 10px; }
         .gm-btn {
             flex: 1; text-align: center; padding: 7px 4px; border-radius: 14px; font-size: 1rem;
@@ -594,15 +598,20 @@
             <summary>🤖 Clave de IA <span class="apikey-status">(opcional, para funciones futuras)</span></summary>
             <div class="apikey-field-body">
                 <label for="aiProviderSelect">Proveedor</label>
-                <select id="aiProviderSelect">
+                <select id="aiProviderSelect" onchange="updateAiProviderFields()">
                     <option value="gemini">Google Gemini</option>
                     <option value="openai">OpenAI</option>
-                    <option value="other">Otro</option>
+                    <option value="other">Otro (compatible con OpenAI)</option>
                 </select>
+                <div id="aiBaseUrlField" style="display:none;">
+                    <label for="aiBaseUrlInput">URL base del endpoint</label>
+                    <input type="text" id="aiBaseUrlInput" placeholder="https://.../v1/chat/completions" autocomplete="off" spellcheck="false">
+                    <p class="apikey-help">Para proveedores compatibles con la API de chat de OpenAI (Groq, Together, un servidor propio, etc.).</p>
+                </div>
                 <label for="aiApiKeyInput">Clave de API</label>
                 <input type="text" id="aiApiKeyInput" class="masked" placeholder="Clave del proveedor de IA elegido" autocomplete="off" spellcheck="false">
                 <button type="button" class="apikey-toggle-visibility" onclick="toggleKeyVisibility('aiApiKeyInput', this)">👁️ Mostrar</button>
-                <p class="apikey-help">De momento solo se guarda: todavía no hay ninguna función que la use en el directorio.</p>
+                <p class="apikey-help">Se usa en la búsqueda por IA en lenguaje natural (arriba, en el buscador).</p>
             </div>
         </details>
 
@@ -816,12 +825,13 @@
             return getComputedStyle(document.documentElement).getPropertyValue('--gm-blue').trim() || '#0F766E';
         }
 
-        // --- Gestión de claves API (Google Maps + IA reservada para el futuro) ---
+        // --- Gestión de claves API (Google Maps + búsqueda por IA en lenguaje natural) ---
         // Las claves solo viven en este navegador: en localStorage si el usuario marca
         // "recordar", o en sessionStorage (se borra al cerrar la pestaña) si no.
         const LS_MAPS_KEY = 'rb_mapsApiKey';
         const LS_AI_KEY = 'rb_aiApiKey';
         const LS_AI_PROVIDER = 'rb_aiProvider';
+        const LS_AI_BASE_URL = 'rb_aiBaseUrl';
         const LS_REMEMBER = 'rb_rememberKeys';
         const LS_USE_LOCATION = 'rb_useLocation';
         const LS_THEME = 'rb_theme';
@@ -942,6 +952,7 @@
                 location: { lat, lng },
                 photoUrl,
                 businessStatus: place.businessStatus || null,
+                specialtyType: place.primaryTypeDisplayName ? place.primaryTypeDisplayName.text : null,
                 openNow: place.regularOpeningHours ? !!place.regularOpeningHours.openNow : null,
                 weekdayDescriptions: place.regularOpeningHours && place.regularOpeningHours.weekdayDescriptions
                     ? place.regularOpeningHours.weekdayDescriptions.slice()
@@ -1086,6 +1097,7 @@
                     ${photoHtml}
                     <div class="swipe-card-body">
                         <div class="swipe-card-title">${escapeHtml(place.displayName)}</div>
+                        ${place.specialtyType ? `<span class="gm-specialty">${escapeHtml(place.specialtyType)}</span>` : ''}
                         <div class="gm-rating">${totalReviews}${priceStr}</div>
                         <div class="swipe-card-address">${escapeHtml(place.formattedAddress)}</div>
                     </div>
@@ -1150,10 +1162,19 @@
         function openApiKeyDialog() {
             document.getElementById('mapsApiKeyInput').value = getStoredValue(LS_MAPS_KEY);
             document.getElementById('aiApiKeyInput').value = getStoredValue(LS_AI_KEY);
+            document.getElementById('aiBaseUrlInput').value = getStoredValue(LS_AI_BASE_URL);
             const provider = getStoredValue(LS_AI_PROVIDER);
             if (provider) document.getElementById('aiProviderSelect').value = provider;
             document.getElementById('rememberKeysCheckbox').checked = localStorage.getItem(LS_REMEMBER) === 'true';
+            updateAiProviderFields();
             document.getElementById('apiKeyDialog').showModal();
+        }
+
+        // Muestra el campo de URL base solo cuando el proveedor elegido es "Otro"
+        // (compatible con OpenAI) -- Gemini y OpenAI ya tienen su endpoint fijo.
+        function updateAiProviderFields() {
+            const isOther = document.getElementById('aiProviderSelect').value === 'other';
+            document.getElementById('aiBaseUrlField').style.display = isOther ? '' : 'none';
         }
 
         function closeApiKeyDialog() {
@@ -1170,14 +1191,19 @@
             const mapsKey = document.getElementById('mapsApiKeyInput').value.trim();
             const aiKey = document.getElementById('aiApiKeyInput').value.trim();
             const aiProvider = document.getElementById('aiProviderSelect').value;
+            const aiBaseUrl = document.getElementById('aiBaseUrlInput').value.trim();
             const remember = document.getElementById('rememberKeysCheckbox').checked;
 
             if (!mapsKey) {
                 alert('La clave de Google Maps es obligatoria para que el directorio funcione.');
                 return;
             }
+            if (aiProvider === 'other' && aiKey && !aiBaseUrl) {
+                alert('Con el proveedor "Otro" hace falta indicar la URL base del endpoint.');
+                return;
+            }
 
-            [LS_MAPS_KEY, LS_AI_KEY, LS_AI_PROVIDER].forEach(k => {
+            [LS_MAPS_KEY, LS_AI_KEY, LS_AI_PROVIDER, LS_AI_BASE_URL].forEach(k => {
                 localStorage.removeItem(k);
                 sessionStorage.removeItem(k);
             });
@@ -1186,6 +1212,7 @@
             store.setItem(LS_MAPS_KEY, mapsKey);
             if (aiKey) store.setItem(LS_AI_KEY, aiKey);
             store.setItem(LS_AI_PROVIDER, aiProvider);
+            if (aiBaseUrl) store.setItem(LS_AI_BASE_URL, aiBaseUrl);
             localStorage.setItem(LS_REMEMBER, remember ? 'true' : 'false');
 
             updateSettingsIcon();
@@ -1211,7 +1238,7 @@
             script.id = 'googleMapsScript';
             script.async = true;
             script.defer = true;
-            script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&libraries=places&callback=initMap`;
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&libraries=places&language=es&callback=initMap`;
             document.head.appendChild(script);
         }
 
@@ -1460,9 +1487,14 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
         }
 
         // También usada para el proveedor "other": muchas APIs de terceros son compatibles
-        // con el formato de chat completions de OpenAI.
+        // con el formato de chat completions de OpenAI, pero en su propia URL -- por eso
+        // "Otro" tiene su propio campo de URL base en el diálogo de configuración.
         async function callOpenAiCompatible(apiKey, userText) {
-            const res = await fetch('https://api.openai.com/v1/chat/completions', {
+            const provider = getStoredValue(LS_AI_PROVIDER);
+            const endpoint = provider === 'other'
+                ? (getStoredValue(LS_AI_BASE_URL) || 'https://api.openai.com/v1/chat/completions')
+                : 'https://api.openai.com/v1/chat/completions';
+            const res = await fetch(endpoint, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -1538,9 +1570,18 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
                 }
 
                 applyAiFilters(parsed);
+                const skipLocationBias = parsed.useCurrentLocation === false;
+                if (skipLocationBias) {
+                    // Otra localidad: el radio "Cercanía" se calcularía contra el GPS real
+                    // del usuario y podría filtrar de golpe todos los resultados válidos,
+                    // así que lo reseteamos a "Sin límite" antes de buscar.
+                    const noLimitRadio = document.querySelector('input[name="radiusOption"][value=""]');
+                    if (noLimitRadio) noLimitRadio.checked = true;
+                    updateFiltersBadge();
+                }
                 await startNewSearch({
                     textQueryOverride: parsed.textQuery,
-                    skipLocationBias: parsed.useCurrentLocation === false
+                    skipLocationBias
                 });
                 setAiStatus('');
                 toggleAiPanel(false);
@@ -1599,6 +1640,15 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
             options = options || {};
             if (!window.google || !google.maps.places || !google.maps.places.Place) return;
 
+            // Las búsquedas manuales (botón, chips, Enter) no pasan skipLocationBias --
+            // aquí se decide a partir del checkbox "Usar mi ubicación GPS": si está
+            // desmarcado, se busca sin sesgo de ubicación, igual que ya hace la IA cuando
+            // detecta una localidad distinta a la del usuario.
+            if (options.skipLocationBias === undefined) {
+                const useLocationCheckbox = document.getElementById('useLocationCheckbox');
+                options.skipLocationBias = !!useLocationCheckbox && !useLocationCheckbox.checked;
+            }
+
             document.getElementById('venuesContainer').innerHTML = '<div id="loader" style="display:block;">Consultando a Google Maps... Por favor, espera.</div>';
             document.getElementById('paginationControls').style.display = 'none';
             document.getElementById('resultsCount').textContent = 'Buscando recomendaciones de Maps...';
@@ -1637,7 +1687,9 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
                 // regularOpeningHours/businessStatus son campos "Enterprise" igual que
                 // rating/priceLevel/userRatingCount, que ya estábamos pidiendo -- no sube
                 // de nivel de precio, así que añadirlos no cuesta más por petición.
-                fields: ['id', 'displayName', 'formattedAddress', 'location', 'rating', 'userRatingCount', 'priceLevel', 'photos', 'regularOpeningHours', 'businessStatus'],
+                // primaryTypeDisplayName es nivel "Pro" (más barato que Enterprise), así que
+                // al ir ya en una petición Enterprise tampoco añade coste extra.
+                fields: ['id', 'displayName', 'formattedAddress', 'location', 'rating', 'userRatingCount', 'priceLevel', 'photos', 'regularOpeningHours', 'businessStatus', 'primaryTypeDisplayName'],
                 maxResultCount: 20,
             };
             if (!options.skipLocationBias) {
@@ -1813,10 +1865,10 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
                     ${photoHtml}
                     <div class="venue-body">
                         <h3 class="gm-title">${escapeHtml(place.displayName)}</h3>
+                        ${place.specialtyType ? `<span class="gm-specialty">${escapeHtml(place.specialtyType)}</span>` : ''}
                         <div class="gm-rating">${totalReviews}${priceStr}</div>
                         <div class="gm-address">
-                            <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
-                            <span>${escapeHtml(place.formattedAddress)}</span>
+                            <span>📍 ${escapeHtml(place.formattedAddress)}</span>
                         </div>
                     </div>
                     <div class="venue-footer">
@@ -1953,6 +2005,7 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
             document.getElementById('mapDetailCardContent').innerHTML = `
                 ${photoHtml}
                 <div class="map-detail-title">${escapeHtml(place.displayName)}</div>
+                ${place.specialtyType ? `<span class="gm-specialty">${escapeHtml(place.specialtyType)}</span>` : ''}
                 ${ratingRowHtml}
                 ${statusHtml}
                 ${hoursHtml}
