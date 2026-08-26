@@ -1019,7 +1019,7 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
                     document.getElementById('venuesContainer').innerHTML = '';
                     document.getElementById('resultsCount').textContent = 'Clave de API inválida';
                     document.getElementById('paginationControls').style.display = 'none';
-                    showApiKeyProblem('La clave de Google Maps no es válida, o le falta habilitar "Places API (New)".');
+                    showApiKeyProblem('Google Places ha rechazado la búsqueda: "' + message + '".');
                 } else {
                     handlePlacesResponse([]);
                 }
