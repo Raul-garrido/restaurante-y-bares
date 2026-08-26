@@ -745,6 +745,8 @@
         const AI_SYSTEM_PROMPT = `Eres un asistente que convierte peticiones en español sobre restaurantes y bares en parámetros de búsqueda para Google Places.
 Responde ÚNICAMENTE con JSON válido (sin markdown, sin texto extra), con esta forma exacta:
 {
+  "understood": boolean,         // false si la frase no tiene relación con buscar un sitio para comer/beber, o es demasiado ambigua para buscar algo razonable
+  "clarification": string|null,  // si understood=false, una frase breve en español explicando qué falta o no se entendió; si understood=true, null
   "textQuery": string,           // texto de búsqueda natural en español para Google Places: tipo de cocina/local + localidad si se menciona una
   "useCurrentLocation": boolean, // true si hay que centrar en la ubicación GPS del usuario ("cerca de mí"); false si se menciona una localidad distinta a la suya
   "type": string[],              // subconjunto de ["restaurant","bar","cafe"], vacío si no se menciona
@@ -752,6 +754,7 @@ Responde ÚNICAMENTE con JSON válido (sin markdown, sin texto extra), con esta 
   "maxPriceLevel": number|null,  // 1 (económico), 2 (moderado) o 3 (elevado) si se menciona presupuesto, si no null
   "minRating": number|null       // 3.5, 4.0 o 4.5 si se pide buena valoración, si no null
 }
+No inventes una interpretación forzada si la frase es ambigua o no tiene que ver con comer/beber: en ese caso usa understood=false y explica brevemente en "clarification" qué necesitas saber para poder buscar.
 Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsqueda, así que no hace falta pedir más.`;
 
         function setAiStatus(text, isError) {
@@ -846,6 +849,11 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
                 const parsed = provider === 'openai' || provider === 'other'
                     ? await callOpenAiCompatible(aiKey, text)
                     : await callGemini(aiKey, text);
+
+                if (parsed.understood === false) {
+                    setAiStatus(parsed.clarification || 'No he entendido bien la petición, ¿puedes reformularla?', true);
+                    return;
+                }
 
                 applyAiFilters(parsed);
                 await startNewSearch({
