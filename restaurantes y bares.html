@@ -3,24 +3,91 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Directorio Gastronómico con Geolocalización</title>
+    <title>Antojo — Directorio Gastronómico con Geolocalización</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
+        /* Identidad propia: paleta cálida (terracota/ámbar) en vez del azul/gris de Google,
+           con soporte de modo oscuro. Los nombres de variable (--gm-*) se mantienen por no
+           tocar cada uso en el CSS, pero los valores ya no imitan el estilo de Google Maps. */
         :root {
-            --gm-blue: #1a73e8;
-            --gm-dark: #202124;
-            --gm-gray: #5f6368;
-            --gm-bg: #f8f9fa;
-            --gm-border: #dadce0;
-            --gm-card-bg: #ffffff;
-            --gm-yellow: #fbbc04;
+            --gm-blue: #E4572E;
+            --gm-blue-hover: #C7431B;
+            --gm-dark: #2B241E;
+            --gm-gray: #8A7B6C;
+            --gm-bg: #FBF7F2;
+            --gm-border: #E8DFD5;
+            --gm-card-bg: #FFFFFF;
+            --gm-yellow: #F4A620;
+            --gm-hover-bg: #F5EDE4;
+            --gm-green: #3A8F5B;
+            --gm-green-hover: #2F7549;
+            --gm-red: #D64550;
+            --gm-red-bg: #FBE7E5;
+            --gm-blue-bg: #FBE9E2;
+            --gm-map-placeholder: #EDE3D8;
+            --gm-footer-bg: #FAF5EF;
+            --gm-ai-bg: #FFF3E9;
+            --gm-ai-border: #F4D4B8;
+            --gm-photo-empty-text: #A99A8A;
+        }
+        :root[data-theme="dark"] {
+            --gm-blue: #F2784B;
+            --gm-blue-hover: #F58F68;
+            --gm-dark: #F2EAE1;
+            --gm-gray: #B8AA9C;
+            --gm-bg: #1B1714;
+            --gm-border: #3A322B;
+            --gm-card-bg: #241F1B;
+            --gm-yellow: #F6B93B;
+            --gm-hover-bg: #2E2721;
+            --gm-green: #4CAF7A;
+            --gm-green-hover: #5FC28D;
+            --gm-red: #E8636F;
+            --gm-red-bg: #3A2320;
+            --gm-blue-bg: #3A2A20;
+            --gm-map-placeholder: #2A2420;
+            --gm-footer-bg: #201B17;
+            --gm-ai-bg: #2B2118;
+            --gm-ai-border: #4A3826;
+            --gm-photo-empty-text: #7A6C5E;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root:not([data-theme="light"]) {
+                --gm-blue: #F2784B;
+                --gm-blue-hover: #F58F68;
+                --gm-dark: #F2EAE1;
+                --gm-gray: #B8AA9C;
+                --gm-bg: #1B1714;
+                --gm-border: #3A322B;
+                --gm-card-bg: #241F1B;
+                --gm-yellow: #F6B93B;
+                --gm-hover-bg: #2E2721;
+                --gm-green: #4CAF7A;
+                --gm-green-hover: #5FC28D;
+                --gm-red: #E8636F;
+                --gm-red-bg: #3A2320;
+                --gm-blue-bg: #3A2A20;
+                --gm-map-placeholder: #2A2420;
+                --gm-footer-bg: #201B17;
+                --gm-ai-bg: #2B2118;
+                --gm-ai-border: #4A3826;
+                --gm-photo-empty-text: #7A6C5E;
+            }
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Roboto', Arial, sans-serif; }
-        body { background-color: var(--gm-bg); color: var(--gm-dark); line-height: 1.5; padding: 20px; }
-        header { max-width: 1200px; margin: 0 auto 20px auto; text-align: center; }
-        header h1 { font-size: 2rem; color: var(--gm-dark); margin-bottom: 6px; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', -apple-system, Segoe UI, Arial, sans-serif; }
+        body { background-color: var(--gm-bg); color: var(--gm-dark); line-height: 1.5; padding: 20px; transition: background-color 0.2s, color 0.2s; }
+        header { max-width: 1200px; margin: 0 auto 20px auto; text-align: center; position: relative; }
+        header h1 { font-family: 'Poppins', 'Inter', sans-serif; font-size: 2rem; color: var(--gm-dark); margin-bottom: 6px; }
         header p { color: var(--gm-gray); font-size: 1rem; }
         .container { max-width: 1200px; margin: 0 auto; }
+        .btn-theme-toggle {
+            position: absolute; top: 0; right: 0; background: var(--gm-card-bg); border: 1px solid var(--gm-border);
+            border-radius: 20px; width: 38px; height: 38px; font-size: 1.1rem; cursor: pointer;
+        }
+        .btn-theme-toggle:hover { background-color: var(--gm-hover-bg); }
 
         /* Mapa General y Botón de Geolocalización */
         .global-map-section {
@@ -410,10 +477,10 @@
                 <div class="dropdown-filter" id="dropPrices">
                     <div class="dropdown-toggle" onclick="toggleDropdown('dropPrices')">Precio (€)</div>
                     <div class="dropdown-content" id="priceCheckboxes">
-                        <button type="button" class="reset-filter-btn" onclick="resetFilterGroup('priceCheckboxes', 'checkbox', startNewSearch)">✕ Limpiar Precio</button>
-                        <label><input type="checkbox" value="1" onchange="startNewSearch()"> Económico (€)</label>
-                        <label><input type="checkbox" value="2" onchange="startNewSearch()"> Moderado (€€)</label>
-                        <label><input type="checkbox" value="3" onchange="startNewSearch()"> Elevado (€€€/€€€€)</label>
+                        <button type="button" class="reset-filter-btn" onclick="resetFilterGroup('priceCheckboxes', 'checkbox', processAndRenderCurrentPage)">✕ Limpiar Precio</button>
+                        <label><input type="checkbox" value="1" onchange="processAndRenderCurrentPage()"> Económico (€)</label>
+                        <label><input type="checkbox" value="2" onchange="processAndRenderCurrentPage()"> Moderado (€€)</label>
+                        <label><input type="checkbox" value="3" onchange="processAndRenderCurrentPage()"> Elevado (€€€/€€€€)</label>
                     </div>
                 </div>
 
@@ -421,10 +488,10 @@
                 <div class="dropdown-filter" id="dropRatings">
                     <div class="dropdown-toggle" onclick="toggleDropdown('dropRatings')">Valoración Mínima</div>
                     <div class="dropdown-content" id="ratingCheckboxes">
-                        <button type="button" class="reset-filter-btn" onclick="resetFilterGroup('ratingCheckboxes', 'checkbox', startNewSearch)">✕ Limpiar Valoración</button>
-                        <label><input type="checkbox" value="4.5" onchange="startNewSearch()"> ★★★★★ (4.5 o más)</label>
-                        <label><input type="checkbox" value="4.0" onchange="startNewSearch()"> ★★★★☆ (4.0 o más)</label>
-                        <label><input type="checkbox" value="3.5" onchange="startNewSearch()"> ★★★☆☆ (3.5 o más)</label>
+                        <button type="button" class="reset-filter-btn" onclick="resetFilterGroup('ratingCheckboxes', 'checkbox', processAndRenderCurrentPage)">✕ Limpiar Valoración</button>
+                        <label><input type="checkbox" value="4.5" onchange="processAndRenderCurrentPage()"> ★★★★★ (4.5 o más)</label>
+                        <label><input type="checkbox" value="4.0" onchange="processAndRenderCurrentPage()"> ★★★★☆ (4.0 o más)</label>
+                        <label><input type="checkbox" value="3.5" onchange="processAndRenderCurrentPage()"> ★★★☆☆ (3.5 o más)</label>
                     </div>
                 </div>
             </div>
