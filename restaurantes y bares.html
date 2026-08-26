@@ -1434,7 +1434,9 @@
             const btn = document.getElementById('syncBtn');
             btn.disabled = true;
             btn.style.opacity = '0.5';
-            startNewSearch();
+            // bypassCache: true -- es literalmente el propósito de este botón, forzar una
+            // consulta nueva a Google en vez de servir lo último que hubiera en caché.
+            startNewSearch({ bypassCache: true });
             setTimeout(() => { btn.disabled = false; btn.style.opacity = ''; }, 800);
         }
 
@@ -1676,7 +1678,7 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
             }
 
             const cacheKey = buildSearchCacheKey(textQuery, options.skipLocationBias);
-            const cached = readSearchCache(cacheKey);
+            const cached = options.bypassCache ? null : readSearchCache(cacheKey);
             if (cached) {
                 handlePlacesResponse(cached);
                 return;
