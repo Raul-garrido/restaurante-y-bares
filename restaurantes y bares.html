@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Antojo — Directorio Gastronómico con Geolocalización</title>
+    <title>Busca dónde comer</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -137,12 +137,37 @@
             background: var(--gm-card-bg); border: 1px solid var(--gm-border); border-radius: 18px;
             padding: 22px; margin-bottom: 28px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);
         }
-        .search-box { margin-bottom: 20px; display: flex; gap: 10px; }
+
+        /* Fila de búsqueda compacta: una sola línea, botones de icono en vez de texto,
+           para dejar sitio a los resultados en pantallas de móvil pequeñas. */
+        .search-row-panel { margin-bottom: 20px; }
+        .search-box { display: flex; gap: 8px; }
         .search-box input {
             flex-grow: 1; padding: 12px 16px; font-size: 1rem; border: 1px solid var(--gm-border);
-            border-radius: 8px; outline: none; transition: border-color 0.2s;
+            background: var(--gm-card-bg); color: var(--gm-dark); border-radius: 24px; outline: none;
+            transition: border-color 0.2s;
         }
         .search-box input:focus { border-color: var(--gm-blue); }
+        .btn-icon-action {
+            position: relative; width: 46px; height: 46px; flex-shrink: 0; border-radius: 50%;
+            border: 1px solid var(--gm-border); background: var(--gm-card-bg); font-size: 1.1rem; cursor: pointer;
+        }
+        .btn-icon-action:hover { background: var(--gm-hover-bg); }
+        .filters-badge {
+            position: absolute; top: -4px; right: -4px; background: var(--gm-blue); color: #fff;
+            font-size: 0.65rem; font-weight: 700; min-width: 16px; height: 16px; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center; padding: 0 3px;
+        }
+
+        /* Hoja inferior (bottom sheet) de filtros: anclada al borde inferior de la
+           pantalla, patrón estándar de apps móviles para paneles bajo demanda. */
+        dialog.bottom-sheet {
+            position: fixed; margin: 0; left: 0; right: 0; bottom: 0; top: auto;
+            width: 100%; max-width: 100%; max-height: 80vh; border-radius: 20px 20px 0 0;
+            overflow-y: auto;
+        }
+        dialog.bottom-sheet::backdrop { background: rgba(0,0,0,0.5); }
+        .bottom-sheet-handle { width: 40px; height: 4px; background: var(--gm-border); border-radius: 2px; margin: 0 auto 14px auto; }
 
         .btn-action {
             background-color: var(--gm-blue); color: white; border: none; padding: 0 20px;
@@ -230,31 +255,40 @@
         /* Fichas — fotos grandes con insignias flotantes (valoración/distancia), tarjeta
            que se eleva al pasar el ratón, para un aire más de app de descubrimiento que
            de panel de administración. */
-        .venues-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 22px; }
+        /* Rejilla densa tipo cuadrícula de app (2+ columnas incluso en móvil), no listado
+           ancho de una columna — fichas compactas, texto mínimo. */
+        .venues-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
         .venue-card {
-            background: var(--gm-card-bg); border: 1px solid var(--gm-border); border-radius: 18px;
-            display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+            background: var(--gm-card-bg); border: 1px solid var(--gm-border); border-radius: 14px;
+            display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.06);
             transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
-        .venue-card:hover { transform: translateY(-4px); box-shadow: 0 14px 28px rgba(0,0,0,0.14); }
-        .gm-photo { width: 100%; height: 200px; background-color: var(--gm-hover-bg); background-size: cover; background-position: center; position: relative; }
-        .venue-card-badges { position: absolute; top: 12px; left: 12px; right: 12px; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+        .venue-card:hover { transform: translateY(-3px); box-shadow: 0 10px 22px rgba(0,0,0,0.14); }
+        .gm-photo { width: 100%; aspect-ratio: 1 / 1; background-color: var(--gm-hover-bg); background-size: cover; background-position: center; position: relative; }
+        .venue-card-badges { position: absolute; top: 8px; left: 8px; right: 8px; display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; }
         .venue-badge {
-            background: rgba(255,255,255,0.92); color: #2B241E; font-size: 0.78rem; font-weight: 600;
-            padding: 5px 10px; border-radius: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.18);
-            display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;
+            background: rgba(255,255,255,0.92); color: #2B241E; font-size: 0.68rem; font-weight: 700;
+            padding: 3px 8px; border-radius: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.18);
+            display: inline-flex; align-items: center; gap: 3px; white-space: nowrap;
         }
         .venue-badge-rating { color: #7A5B00; }
         .venue-badge-distance { color: var(--gm-blue-hover); }
-        .venue-body { padding: 16px 18px; display: flex; flex-direction: column; flex-grow: 1; }
-        .gm-title { font-family: 'Poppins', sans-serif; font-size: 1.2rem; font-weight: 600; color: var(--gm-dark); margin-bottom: 6px; line-height: 1.25; }
-        .gm-rating { font-size: 0.85rem; color: var(--gm-gray); margin-bottom: 10px; }
-        .gm-address { font-size: 0.85rem; color: var(--gm-gray); margin-bottom: 12px; display: flex; align-items: flex-start; gap: 8px; }
-        .gm-address svg { width: 16px; height: 16px; fill: var(--gm-gray); flex-shrink: 0; margin-top: 2px; }
+        .venue-body { padding: 10px 12px 4px 12px; display: flex; flex-direction: column; flex-grow: 1; }
+        .gm-title {
+            font-family: 'Poppins', sans-serif; font-size: 0.92rem; font-weight: 600; color: var(--gm-dark);
+            margin-bottom: 3px; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 1;
+            -webkit-box-orient: vertical; overflow: hidden;
+        }
+        .gm-rating { font-size: 0.75rem; color: var(--gm-gray); margin-bottom: 4px; }
+        .gm-address {
+            font-size: 0.72rem; color: var(--gm-gray); margin-bottom: 8px; display: -webkit-box;
+            -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;
+        }
+        .gm-address svg { display: none; }
 
-        .venue-footer { display: flex; gap: 10px; padding: 0 18px 18px 18px; }
+        .venue-footer { display: flex; gap: 6px; padding: 0 10px 10px 10px; }
         .gm-btn {
-            flex: 1; text-align: center; padding: 9px 12px; border-radius: 20px; font-size: 0.85rem;
+            flex: 1; text-align: center; padding: 7px 4px; border-radius: 14px; font-size: 1rem;
             font-weight: 600; text-decoration: none; display: inline-flex; justify-content: center; align-items: center; border: 1px solid var(--gm-border); transition: background-color 0.2s;
         }
         .btn-directions { background-color: var(--gm-blue); color: white; border: none; }
@@ -352,13 +386,34 @@
         }
 
         /* Panel de IA */
-        /* Tarjeta flotante de búsqueda por IA: la principal forma de usar la app, así que
-           se le da el sitio más destacado, encima del borde de la banda de color. */
+        /* Tarjeta flotante de búsqueda por IA: colapsada por defecto (una sola línea,
+           icono + texto), se expande al tocarla. En móvil no puede ocupar media
+           pantalla solo para invitar a escribir. */
         .ai-panel {
             background: var(--gm-card-bg); border: none; border-radius: 22px;
-            box-shadow: 0 16px 40px rgba(0,0,0,0.18); padding: 22px;
+            box-shadow: 0 16px 40px rgba(0,0,0,0.18); padding: 10px 14px;
+            transition: padding 0.2s ease;
         }
-        .ai-panel-title { font-size: 1.05rem; margin-bottom: 12px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
+        .ai-panel.expanded { padding: 18px 20px; }
+        .ai-collapsed-trigger {
+            width: 100%; background: none; border: none; cursor: pointer; padding: 6px 2px;
+            display: flex; align-items: center; gap: 12px; text-align: left;
+        }
+        .ai-panel.expanded .ai-collapsed-trigger { display: none; }
+        .ai-collapsed-icon {
+            width: 38px; height: 38px; flex-shrink: 0; border-radius: 50%; background: var(--gm-ai-bg);
+            display: flex; align-items: center; justify-content: center; font-size: 1.2rem;
+        }
+        .ai-collapsed-text { flex-grow: 1; color: var(--gm-gray); font-size: 0.95rem; }
+        .ai-collapsed-mic {
+            width: 34px; height: 34px; flex-shrink: 0; border-radius: 50%; background: var(--gm-hover-bg);
+            display: flex; align-items: center; justify-content: center; font-size: 1rem;
+        }
+        .ai-expanded { display: none; }
+        .ai-panel.expanded .ai-expanded { display: block; }
+        .ai-panel-title { font-size: 1.05rem; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+        .ai-collapse-btn { background: none; border: none; color: var(--gm-gray); font-size: 1.1rem; cursor: pointer; padding: 4px; }
+        .ai-panel-hint { font-size: 0.8rem; color: var(--gm-gray); margin-bottom: 12px; }
         .ai-input-row { display: flex; gap: 10px; align-items: flex-start; }
         .ai-input-row textarea {
             flex-grow: 1; padding: 12px 16px; font-size: 0.95rem; border: 1px solid var(--gm-border);
@@ -382,7 +437,7 @@
     <header class="hero">
         <div class="hero-top">
             <div class="hero-titles">
-                <h1>Antojo</h1>
+                <h1>Busca dónde comer</h1>
                 <p>Encuentra tu próximo sitio favorito, cerca de ti.</p>
             </div>
             <div class="header-corner-actions">
@@ -393,17 +448,26 @@
     </header>
 
     <div class="hero-search-wrap">
-        <!-- Panel de búsqueda por IA -->
-        <section class="filters-panel ai-panel">
-            <h2 class="ai-panel-title">🤖 Pregunta a la IA <span class="apikey-status">(ej: "quiero tapas cerca de mí", "comida china en Alcalá de Henares")</span></h2>
-            <div class="ai-input-row">
-                <textarea id="aiQueryInput" rows="2" placeholder='Escribe o dicta lo que te apetece comer y dónde, por ejemplo: "unas buenas tapas cerca de mí" o "comida china en Alcalá de Henares"'></textarea>
-                <div class="ai-input-buttons">
-                    <button type="button" class="btn-mic" id="aiMicBtn" onclick="toggleMic()" title="Dictar por voz">🎤</button>
-                    <button type="button" class="btn-action" onclick="runAiSearch()">Preguntar</button>
+        <!-- Panel de búsqueda por IA: colapsado por defecto (solo icono + placeholder),
+             se expande al tocarlo. Así no ocupa media pantalla en móvil. -->
+        <section class="filters-panel ai-panel" id="aiPanel">
+            <button type="button" class="ai-collapsed-trigger" id="aiCollapsedTrigger" onclick="toggleAiPanel(true)">
+                <span class="ai-collapsed-icon">🤖</span>
+                <span class="ai-collapsed-text">¿Qué te apetece comer?</span>
+                <span class="ai-collapsed-mic" onclick="event.stopPropagation(); toggleAiPanel(true); toggleMic();" title="Dictar por voz">🎤</span>
+            </button>
+            <div class="ai-expanded" id="aiExpanded">
+                <h2 class="ai-panel-title">🤖 Pregunta a la IA <button type="button" class="ai-collapse-btn" onclick="toggleAiPanel(false)" title="Cerrar">✕</button></h2>
+                <p class="ai-panel-hint">Ej: "quiero tapas cerca de mí", "comida china en Alcalá de Henares"</p>
+                <div class="ai-input-row">
+                    <textarea id="aiQueryInput" rows="2" placeholder='Escribe o dicta lo que te apetece comer y dónde...'></textarea>
+                    <div class="ai-input-buttons">
+                        <button type="button" class="btn-mic" id="aiMicBtn" onclick="toggleMic()" title="Dictar por voz">🎤</button>
+                        <button type="button" class="btn-action" onclick="runAiSearch()">Preguntar</button>
+                    </div>
                 </div>
+                <p class="ai-status" id="aiStatus"></p>
             </div>
-            <p class="ai-status" id="aiStatus"></p>
         </section>
     </div>
 
@@ -465,65 +529,78 @@
             </label>
         </section>
 
-        <!-- Panel de Filtros: chips/píldoras siempre visibles, nada de desplegables tipo
-             formulario -->
-        <section class="filters-panel">
+        <!-- Búsqueda manual + botón de filtros: los filtros en sí viven en una hoja
+             inferior (bottom sheet) que se abre bajo demanda, para no ocupar espacio fijo
+             en pantallas de móvil pequeñas. -->
+        <section class="search-row-panel">
             <div class="search-box">
-                <input type="text" id="searchInput" placeholder="Buscar por nombre o calle (ej: Asador, Pizzería, Bar)...">
-                <button class="btn-action" onclick="startNewSearch()">Buscar</button>
-                <button class="btn-action btn-sync" onclick="forceDataSync()" title="Recargar datos de Google">Actualizar Datos</button>
+                <input type="text" id="searchInput" placeholder="Buscar por nombre o calle...">
+                <button class="btn-icon-action" onclick="startNewSearch()" title="Buscar">🔍</button>
+                <button class="btn-icon-action" onclick="openFiltersDialog()" title="Filtros">
+                    🔧<span class="filters-badge" id="filtersBadge" style="display:none;">0</span>
+                </button>
+                <button class="btn-icon-action" onclick="forceDataSync()" title="Recargar datos de Google">↻</button>
             </div>
+        </section>
+
+        <dialog id="filtersDialog" class="apikey-dialog bottom-sheet">
+            <div class="bottom-sheet-handle"></div>
+            <h2>Filtros <button type="button" class="ai-collapse-btn" onclick="document.getElementById('filtersDialog').close()" title="Cerrar">✕</button></h2>
 
             <div class="chip-group">
                 <span class="chip-group-label">Cercanía</span>
                 <div class="chip-row" id="radiusOptions">
-                    <label class="chip"><input type="radio" name="radiusOption" value="" checked onchange="handleRadiusChange()"><span>Sin límite</span></label>
-                    <label class="chip"><input type="radio" name="radiusOption" value="300" onchange="handleRadiusChange()"><span>≤300 m</span></label>
-                    <label class="chip"><input type="radio" name="radiusOption" value="500" onchange="handleRadiusChange()"><span>≤500 m</span></label>
-                    <label class="chip"><input type="radio" name="radiusOption" value="1000" onchange="handleRadiusChange()"><span>≤1 km</span></label>
-                    <label class="chip"><input type="radio" name="radiusOption" value="2000" onchange="handleRadiusChange()"><span>≤2 km</span></label>
-                    <label class="chip"><input type="radio" name="radiusOption" value="5000" onchange="handleRadiusChange()"><span>≤5 km</span></label>
+                    <label class="chip"><input type="radio" name="radiusOption" value="" checked onchange="handleRadiusChange(); updateFiltersBadge();"><span>Sin límite</span></label>
+                    <label class="chip"><input type="radio" name="radiusOption" value="300" onchange="handleRadiusChange(); updateFiltersBadge();"><span>≤300 m</span></label>
+                    <label class="chip"><input type="radio" name="radiusOption" value="500" onchange="handleRadiusChange(); updateFiltersBadge();"><span>≤500 m</span></label>
+                    <label class="chip"><input type="radio" name="radiusOption" value="1000" onchange="handleRadiusChange(); updateFiltersBadge();"><span>≤1 km</span></label>
+                    <label class="chip"><input type="radio" name="radiusOption" value="2000" onchange="handleRadiusChange(); updateFiltersBadge();"><span>≤2 km</span></label>
+                    <label class="chip"><input type="radio" name="radiusOption" value="5000" onchange="handleRadiusChange(); updateFiltersBadge();"><span>≤5 km</span></label>
                 </div>
             </div>
 
             <div class="chip-group">
                 <span class="chip-group-label">Tipo de local</span>
                 <div class="chip-row" id="typeCheckboxes">
-                    <label class="chip"><input type="checkbox" value="restaurant" onchange="startNewSearch()"><span>Restaurante</span></label>
-                    <label class="chip"><input type="checkbox" value="bar" onchange="startNewSearch()"><span>Bar / Gastrobar</span></label>
-                    <label class="chip"><input type="checkbox" value="cafe" onchange="startNewSearch()"><span>Cafetería</span></label>
+                    <label class="chip"><input type="checkbox" value="restaurant" onchange="startNewSearch(); updateFiltersBadge();"><span>Restaurante</span></label>
+                    <label class="chip"><input type="checkbox" value="bar" onchange="startNewSearch(); updateFiltersBadge();"><span>Bar / Gastrobar</span></label>
+                    <label class="chip"><input type="checkbox" value="cafe" onchange="startNewSearch(); updateFiltersBadge();"><span>Cafetería</span></label>
                 </div>
             </div>
 
             <div class="chip-group">
                 <span class="chip-group-label">Estilo / Cocina</span>
                 <div class="chip-row" id="cuisineCheckboxes">
-                    <label class="chip"><input type="checkbox" value="Mediterránea" onchange="startNewSearch()"><span>Mediterránea</span></label>
-                    <label class="chip"><input type="checkbox" value="Americana" onchange="startNewSearch()"><span>Americana / Burger</span></label>
-                    <label class="chip"><input type="checkbox" value="Italiana" onchange="startNewSearch()"><span>Italiana / Pizzería</span></label>
-                    <label class="chip"><input type="checkbox" value="Asiática" onchange="startNewSearch()"><span>Asiática / Sushi</span></label>
-                    <label class="chip"><input type="checkbox" value="Tapas" onchange="startNewSearch()"><span>Tapas / Raciones</span></label>
+                    <label class="chip"><input type="checkbox" value="Mediterránea" onchange="startNewSearch(); updateFiltersBadge();"><span>Mediterránea</span></label>
+                    <label class="chip"><input type="checkbox" value="Americana" onchange="startNewSearch(); updateFiltersBadge();"><span>Americana / Burger</span></label>
+                    <label class="chip"><input type="checkbox" value="Italiana" onchange="startNewSearch(); updateFiltersBadge();"><span>Italiana / Pizzería</span></label>
+                    <label class="chip"><input type="checkbox" value="Asiática" onchange="startNewSearch(); updateFiltersBadge();"><span>Asiática / Sushi</span></label>
+                    <label class="chip"><input type="checkbox" value="Tapas" onchange="startNewSearch(); updateFiltersBadge();"><span>Tapas / Raciones</span></label>
                 </div>
             </div>
 
             <div class="chip-group">
                 <span class="chip-group-label">Precio</span>
                 <div class="chip-row" id="priceCheckboxes">
-                    <label class="chip"><input type="checkbox" value="1" onchange="processAndRenderCurrentPage()"><span>€ Económico</span></label>
-                    <label class="chip"><input type="checkbox" value="2" onchange="processAndRenderCurrentPage()"><span>€€ Moderado</span></label>
-                    <label class="chip"><input type="checkbox" value="3" onchange="processAndRenderCurrentPage()"><span>€€€ Elevado</span></label>
+                    <label class="chip"><input type="checkbox" value="1" onchange="processAndRenderCurrentPage(); updateFiltersBadge();"><span>€ Económico</span></label>
+                    <label class="chip"><input type="checkbox" value="2" onchange="processAndRenderCurrentPage(); updateFiltersBadge();"><span>€€ Moderado</span></label>
+                    <label class="chip"><input type="checkbox" value="3" onchange="processAndRenderCurrentPage(); updateFiltersBadge();"><span>€€€ Elevado</span></label>
                 </div>
             </div>
 
             <div class="chip-group">
                 <span class="chip-group-label">Valoración mínima</span>
                 <div class="chip-row" id="ratingCheckboxes">
-                    <label class="chip"><input type="checkbox" value="3.5" onchange="processAndRenderCurrentPage()"><span>★ 3.5+</span></label>
-                    <label class="chip"><input type="checkbox" value="4.0" onchange="processAndRenderCurrentPage()"><span>★ 4.0+</span></label>
-                    <label class="chip"><input type="checkbox" value="4.5" onchange="processAndRenderCurrentPage()"><span>★ 4.5+</span></label>
+                    <label class="chip"><input type="checkbox" value="3.5" onchange="processAndRenderCurrentPage(); updateFiltersBadge();"><span>★ 3.5+</span></label>
+                    <label class="chip"><input type="checkbox" value="4.0" onchange="processAndRenderCurrentPage(); updateFiltersBadge();"><span>★ 4.0+</span></label>
+                    <label class="chip"><input type="checkbox" value="4.5" onchange="processAndRenderCurrentPage(); updateFiltersBadge();"><span>★ 4.5+</span></label>
                 </div>
             </div>
-        </section>
+
+            <div class="apikey-dialog-actions">
+                <button type="button" class="btn-action" onclick="document.getElementById('filtersDialog').close()">Ver resultados</button>
+            </div>
+        </dialog>
 
         <div class="results-info">
             <span id="resultsCount">Esperando realizar búsqueda...</span>
@@ -1167,8 +1244,23 @@
         }
 
         function handleRadiusChange() {
-            document.getElementById('dropRadius').classList.remove('active');
             processAndRenderCurrentPage();
+        }
+
+        function openFiltersDialog() {
+            document.getElementById('filtersDialog').showModal();
+        }
+
+        function updateFiltersBadge() {
+            const activeCount =
+                document.querySelectorAll('#typeCheckboxes input:checked').length +
+                document.querySelectorAll('#cuisineCheckboxes input:checked').length +
+                document.querySelectorAll('#priceCheckboxes input:checked').length +
+                document.querySelectorAll('#ratingCheckboxes input:checked').length +
+                (document.querySelector('input[name="radiusOption"]:checked')?.value ? 1 : 0);
+            const badge = document.getElementById('filtersBadge');
+            badge.textContent = activeCount;
+            badge.style.display = activeCount > 0 ? 'flex' : 'none';
         }
 
         function forceDataSync() {
@@ -1272,6 +1364,15 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
             document.getElementById('searchInput').value = parsed.textQuery || '';
         }
 
+        // Colapsa/expande la tarjeta de IA a una sola línea (icono + texto) cuando no se
+        // está usando, para no ocupar media pantalla en móvil.
+        function toggleAiPanel(expand) {
+            const panel = document.getElementById('aiPanel');
+            const nowExpanded = expand !== undefined ? expand : !panel.classList.contains('expanded');
+            panel.classList.toggle('expanded', nowExpanded);
+            if (nowExpanded) document.getElementById('aiQueryInput').focus();
+        }
+
         async function runAiSearch() {
             const text = document.getElementById('aiQueryInput').value.trim();
             if (!text) return;
@@ -1303,6 +1404,7 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
                     skipLocationBias: parsed.useCurrentLocation === false
                 });
                 setAiStatus('');
+                toggleAiPanel(false);
             } catch (error) {
                 console.error('Error consultando a la IA:', error);
                 setAiStatus('No se pudo interpretar la petición: ' + error.message, true);
@@ -1576,8 +1678,8 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
                         </div>
                     </div>
                     <div class="venue-footer">
-                        <a href="${directionsUrl}" target="_blank" class="gm-btn btn-directions">Cómo llegar</a>
-                        <a href="${mapUrl}" target="_blank" class="gm-btn btn-outline">Ver Horarios en Maps</a>
+                        <a href="${directionsUrl}" target="_blank" class="gm-btn btn-directions" title="Cómo llegar">🧭</a>
+                        <a href="${mapUrl}" target="_blank" class="gm-btn btn-outline" title="Ver en Google Maps">🗺️</a>
                     </div>
                 `;
 
