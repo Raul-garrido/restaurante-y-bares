@@ -594,9 +594,12 @@
             // tiene que pasar por saveApiKeys() -> location.reload(), nunca por una segunda
             // inyección directa del script.
             document.getElementById('globalMap').innerHTML =
-                `<div style="padding:20px; text-align:center; color:#d93025;">${escapeHtml(detail)} Revisa en Google Cloud Console que tengas habilitadas "Maps JavaScript API" y "Places API (New)", y que las restricciones de dominio incluyan este sitio.</div>`;
+                `<div style="padding:20px; text-align:center; color:#d93025;">${escapeHtml(detail)} Revisa en Google Cloud Console que tengas habilitadas "Maps JavaScript API" y "Places API (New)", y que las restricciones de dominio incluyan este sitio.<br><br>Pulsa "⚙️ Configurar API Keys" arriba para corregirla.</div>`;
             document.getElementById('mapCounterBadge').textContent = 'Clave inválida';
-            openApiKeyDialog();
+            // Ya NO reabrimos el diálogo automáticamente aquí: si la clave sigue fallando,
+            // esto se dispara en cada carga de página y el diálogo parece "no cerrarse
+            // nunca" (se cierra al guardar, la página recarga, y se reabre solo al momento
+            // por el mismo fallo). El aviso de arriba ya deja claro qué hacer.
         }
 
         // Google llama a esta función global si la clave no es válida, le faltan permisos
