@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Directorio Gastronómico con Geolocalización</title>
+    <style>
+        :root {
+            --gm-blue: #1a73e8;
+            --gm-dark: #202124;
+            --gm-gray: #5f6368;
+            --gm-bg: #f8f9fa;
+            --gm-border: #dadce0;
+            --gm-card-bg: #ffffff;
+            --gm-yellow: #fbbc04;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Roboto', Arial, sans-serif; }
+        body { background-color: var(--gm-bg); color: var(--gm-dark); line-height: 1.5; padding: 20px; }
+        header { max-width: 1200px; margin: 0 auto 20px auto; text-align: center; }
+        header h1 { font-size: 2rem; color: var(--gm-dark); margin-bottom: 6px; }
+        header p { color: var(--gm-gray); font-size: 1rem; }
+        .container { max-width: 1200px; margin: 0 auto; }
+
+        /* Mapa General y Botón de Geolocalización */
+        .global-map-section {
+            background: var(--gm-card-bg); border: 1px solid var(--gm-border); border-radius: 12px;
+            padding: 12px; margin-bottom: 25px; box-shadow: 0 1px 3px rgba(60,64,67,0.1);
+            position: relative;
+        }
+        .global-map-section h2 {
+            font-size: 0.95rem; color: var(--gm-gray); margin-bottom: 8px; display: flex;
+            justify-content: space-between; align-items: center;
+        }
+        #globalMap { width: 100%; height: 260px; border-radius: 8px; border: 1px solid var(--gm-border); background-color: #e5e3df; }
+        
+        .btn-geolocation {
+            position: absolute;
+            top: 52px;
+            right: 20px;
+            z-index: 5;
+            background-color: #ffffff;
+            color: var(--gm-dark);
+            border: 1px solid var(--gm-border);
+            padding: 8px 12px;
+            border-radius: 4px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: background-color 0.2s;
+        }
+        .btn-geolocation:hover { background-color: #f1f3f4; }
+        .btn-geolocation svg { width: 16px; height: 16px; fill: var(--gm-blue); }
+
+        /* Panel de Filtros */
+        .filters-panel {
+            background: var(--gm-card-bg); border: 1px solid var(--gm-border); border-radius: 12px;
+            padding: 20px; margin-bottom: 25px; box-shadow: 0 1px 3px rgba(60,64,67,0.1);
+        }
+        .search-box { margin-bottom: 15px; display: flex; gap: 10px; }
+        .search-box input {
+            flex-grow: 1; padding: 12px 16px; font-size: 1rem; border: 1px solid var(--gm-border);
+            border-radius: 8px; outline: none; transition: border-color 0.2s;
+        }
+        .search-box input:focus { border-color: var(--gm-blue); }
+        
+        .btn-action {
+            background-color: var(--gm-blue); color: white; border: none; padding: 0 20px;
+            border-radius: 8px; font-weight: 500; cursor: pointer; font-size: 0.95rem; white-space: nowrap;
+        }
+        .btn-action:hover { background-color: #1557b0; }
+        .btn-sync { background-color: #188038; }
+        .btn-sync:hover { background-color: #13662d; }
+
+        .filter-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
+
+        /* Estilo Dropdown Desplegable */
+        .dropdown-filter {
+            position: relative;
+            border: 1px solid var(--gm-border);
+            border-radius: 8px;
+            background: #fff;
+        }
+        .dropdown-toggle {
+            padding: 12px 14px;
+            font-size: 0.9rem;
+            color: var(--gm-dark);
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 500;
+            user-select: none;
+        }
+        .dropdown-toggle::after {
+            content: "▼";
+            font-size: 0.7rem;
+            color: var(--gm-gray);
+            transition: transform 0.2s;
+        }
+        .dropdown-filter.active .dropdown-toggle::after {
+            transform: rotate(180deg);
+        }
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: #fff;
+            border: 1px solid var(--gm-border);
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            z-index: 100;
+            padding: 10px;
+            max-height: 190px;
+            overflow-y: auto;
+        }
+        .dropdown-filter.active .dropdown-content {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .dropdown-content label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            color: var(--gm-dark);
+        }
+        
+        .reset-filter-btn {
+            background-color: #f1f3f4;
+            color: #d93025;
+            border: 1px solid var(--gm-border);
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            cursor: pointer;
+            text-align: center;
+            margin-bottom: 4px;
+            transition: background-color 0.2s;
+        }
+        .reset-filter-btn:hover { background-color: #fce8e6; }
+
+        .results-info { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; font-size: 0.9rem; color: var(--gm-gray); }
+
+        /* Fichas Estilo Google Maps */
+        .venues-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
+        .venue-card {
+            background: var(--gm-card-bg); border: 1px solid var(--gm-border); border-radius: 12px;
+            display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 1px 3px rgba(60,64,67,0.1); transition: box-shadow 0.2s;
+        }
+        .venue-card:hover { box-shadow: 0 4px 8px rgba(60,64,67,0.15); }
+        .gm-photo { width: 100%; height: 160px; background-color: #f1f3f4; background-size: cover; background-position: center; border-bottom: 1px solid var(--gm-border); }
+        .venue-body { padding: 16px; display: flex; flex-direction: column; flex-grow: 1; }
+        .gm-title { font-size: 1.15rem; font-weight: 500; color: var(--gm-dark); margin-bottom: 6px; }
+        .gm-rating { font-size: 0.85rem; color: var(--gm-dark); margin-bottom: 6px; display: flex; align-items: center; gap: 4px; font-weight: 500; }
+        .gm-distance-tag { font-size: 0.8rem; color: var(--gm-blue); font-weight: 500; margin-bottom: 8px; }
+        .gm-address { font-size: 0.85rem; color: var(--gm-gray); margin-bottom: 12px; display: flex; align-items: flex-start; gap: 8px; }
+        .gm-address svg { width: 16px; height: 16px; fill: var(--gm-gray); flex-shrink: 0; margin-top: 2px; }
+        
+        .venue-footer { display: flex; gap: 10px; border-top: 1px solid var(--gm-border); padding: 12px 16px; background: #fafafa; }
+        .gm-btn {
+            flex: 1; text-align: center; padding: 8px 12px; border-radius: 18px; font-size: 0.85rem;
+            font-weight: 500; text-decoration: none; display: inline-flex; justify-content: center; align-items: center; border: 1px solid var(--gm-border); transition: background-color 0.2s;
+        }
+        .btn-directions { background-color: var(--gm-blue); color: white; border: none; }
+        .btn-directions:hover { background-color: #1557b0; }
+        .btn-outline { background-color: var(--gm-card-bg); color: var(--gm-blue); }
+        .btn-outline:hover { background-color: #f1f3f4; }
+
+        /* Paginación Numérica Interactiva */
+        .pagination-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            margin: 30px 0;
+        }
+        .btn-page {
+            background-color: #ffffff;
+            border: 1px solid var(--gm-border);
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: 500;
+            color: var(--gm-blue);
+            cursor: pointer;
+            box-shadow: 0 1px 2px rgba(60,64,67,0.1);
+            transition: background-color 0.2s;
+        }
+        .btn-page:hover:not(:disabled) { background-color: #f8f9fa; }
+        .btn-page:disabled { color: var(--gm-gray); background-color: #f1f3f4; cursor: not-allowed; border-color: #e5e3df; box-shadow: none; }
+        
+        .page-indicator {
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: var(--gm-dark);
+        }
+
+        #loader { text-align: center; padding: 40px; color: var(--gm-gray); font-size: 1.1rem; display: none; grid-column: 1 / -1; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Directorio Gastronómico con Geolocalización</h1>
+        <p>Recomendaciones en directo basadas en proximidad GPS y mapas oficiales de Google.</p>
+    </header>
+
+    <main class="container">
+        <!-- Mapa General API de Google Maps con Botón de Ubicación -->
+        <section class="global-map-section">
+            <h2>Mapa de Resultados <span id="mapCounterBadge" style="font-size:0.75rem; background:#e8f0fe; color:var(--gm-blue); padding:2px 8px; border-radius:12px;">Esperando datos...</span></h2>
+            <button class="btn-geolocation" onclick="centerOnUserLocation()" title="Centrar mapa en mi posición actual">
+                <svg viewBox="0 0 24 24"><path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3c-.46-4.17-3.77-7.48-7.94-7.94V1h-2v2.06C6.83 3.52 3.52 6.83 3.06 11H1v2h2.06c.46 4.17 3.77 7.48 7.94 7.94V23h2v-2.06c4.17-.46 7.48-3.77 7.94-7.94H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>
+                Centrar en mi ubicación
+            </button>
+            <div id="globalMap"></div>
+        </section>
+
+        <!-- Panel de Filtros -->
+        <section class="filters-panel">
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Buscar por nombre o calle (ej: Asador, Pizzería, Bar)...">
+                <button class="btn-action" onclick="startNewSearch()">Buscar</button>
+                <button class="btn-action btn-sync" onclick="forceDataSync()" title="Recargar datos de Google">Actualizar Datos</button>
+            </div>
+            
+            <div class="filter-grid">
+                <!-- Dropdown: Cercanía -->
+                <div class="dropdown-filter" id="dropRadius">
+                    <div class="dropdown-toggle" onclick="toggleDropdown('dropRadius')">Cercanía (Radio GPS)</div>
+                    <div class="dropdown-content" id="radiusOptions">
+                        <button type="button" class="reset-filter-btn" onclick="resetFilterGroup('radiusOptions', 'radiusOption', handleRadiusChange)">✕ Limpiar Cercanía</button>
+                        <label><input type="radio" name="radiusOption" value="" checked onchange="handleRadiusChange()"> Sin límite de distancia</label>
+                        <label><input type="radio" name="radiusOption" value="100" onchange="handleRadiusChange()"> A menos de 100 m</label>
+                        <label><input type="radio" name="radiusOption" value="200" onchange="handleRadiusChange()"> A menos de 200 m</label>
+                        <label><input type="radio" name="radiusOption" value="300" onchange="handleRadiusChange()"> A menos de 300 m</label>
+                        <label><input type="radio" name="radiusOption" value="400" onchange="handleRadiusChange()"> A menos de 400 m</label>
+                        <label><input type="radio" name="radiusOption" value="500" onchange="handleRadiusChange()"> A menos de 500 m</label>
+                        <label><input type="radio" name="radiusOption" value="1000" onchange="handleRadiusChange()"> A menos de 1 km</label>
+                        <label><input type="radio" name="radiusOption" value="2000" onchange="handleRadiusChange()"> A menos de 2 km</label>
+                        <label><input type="radio" name="radiusOption" value="5000" onchange="handleRadiusChange()"> A menos de 5 km</label>
+                    </div>
+                </div>
+
+                <!-- Dropdown: Tipo de Local -->
+                <div class="dropdown-filter" id="dropTypes">
+                    <div class="dropdown-toggle" onclick="toggleDropdown('dropTypes')">Tipo de Local</div>
+                    <div class="dropdown-content" id="typeCheckboxes">
+                        <button type="button" class="reset-filter-btn" onclick="resetFilterGroup('typeCheckboxes', 'checkbox', startNewSearch)">✕ Limpiar Tipo</button>
+                        <label><input type="checkbox" value="restaurant" onchange="startNewSearch()"> Restaurante</label>
+                        <label><input type="checkbox" value="bar" onchange="startNewSearch()"> Bar / Gastrobar</label>
+                        <label><input type="checkbox" value="cafe" onchange="startNewSearch()"> Cafetería</label>
+                    </div>
+                </div>
+
+                <!-- Dropdown: Estilo / Cocina -->
+                <div class="dropdown-filter" id="dropCuisines">
+                    <div class="dropdown-toggle" onclick="toggleDropdown('dropCuisines')">Estilo / Cocina</div>
+                    <div class="dropdown-content" id="cuisineCheckboxes">
+                        <button type="button" class="reset-filter-btn" onclick="resetFilterGroup('cuisineCheckboxes', 'checkbox', startNewSearch)">✕ Limpiar Cocina</button>
+                        <label><input type="checkbox" value="Mediterránea" onchange="startNewSearch()"> Mediterránea</label>
+                        <label><input type="checkbox" value="Americana" onchange="startNewSearch()"> Americana / Burger</label>
+                        <label><input type="checkbox" value="Italiana" onchange="startNewSearch()"> Italiana / Pizzería</label>
+                        <label><input type="checkbox" value="Asiática" onchange="startNewSearch()"> Asiática / Sushi</label>
+                        <label><input type="checkbox" value="Tapas" onchange="startNewSearch()"> Tapas / Raciones</label>
+                    </div>
+                </div>
+
+                <!-- Dropdown: Rango de Precio -->
+                <div class="dropdown-filter" id="dropPrices">
+                    <div class="dropdown-toggle" onclick="toggleDropdown('dropPrices')">Precio (€)</div>
+                    <div class="dropdown-content" id="priceCheckboxes">
+                        <button type="button" class="reset-filter-btn" onclick="resetFilterGroup('priceCheckboxes', 'checkbox', startNewSearch)">✕ Limpiar Precio</button>
+                        <label><input type="checkbox" value="1" onchange="startNewSearch()"> Económico (€)</label>
+                        <label><input type="checkbox" value="2" onchange="startNewSearch()"> Moderado (€€)</label>
+                        <label><input type="checkbox" value="3" onchange="startNewSearch()"> Elevado (€€€/€€€€)</label>
+                    </div>
+                </div>
+
+                <!-- Dropdown: Valoración en Estrellas -->
+                <div class="dropdown-filter" id="dropRatings">
+                    <div class="dropdown-toggle" onclick="toggleDropdown('dropRatings')">Valoración Mínima</div>
+                    <div class="dropdown-content" id="ratingCheckboxes">
+                        <button type="button" class="reset-filter-btn" onclick="resetFilterGroup('ratingCheckboxes', 'checkbox', startNewSearch)">✕ Limpiar Valoración</button>
+                        <label><input type="checkbox" value="4.5" onchange="startNewSearch()"> ★★★★★ (4.5 o más)</label>
+                        <label><input type="checkbox" value="4.0" onchange="startNewSearch()"> ★★★★☆ (4.0 o más)</label>
+                        <label><input type="checkbox" value="3.5" onchange="startNewSearch()"> ★★★☆☆ (3.5 o más)</label>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="results-info">
+            <span id="resultsCount">Esperando realizar búsqueda...</span>
+            <span style="color:#188038; font-weight:500;">✓ Sincronizado con Google Maps</span>
+        </div>
+
+        <section id="venuesContainer" class="venues-grid">
+            <div id="loader">Consultando a Google Maps... Por favor, espera.</div>
+        </section>
+
+        <!-- Paginación Numérica Interactiva Exacta -->
+        <div class="pagination-container" id="paginationControls" style="display: none;">
+            <button class="btn-page" id="prevPageBtn" onclick="changePage(-1)">Retroceder</button>
+            <span class="page-indicator" id="pageIndicator">Página 1 de 1</span>
+            <button class="btn-page" id="nextPageBtn" onclick="changePage(1)">Siguiente</button>
+        </div>
+    </main>
+
+    <!-- API GOOGLE MAPS -->
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBuk-YsjCSIfcaiTV-YmGdwv1qyK8QM9hQ&libraries=places&callback=initMap"></script>
+
+    <script>
+        let map;
+        let placesService;
+        let googleMarkers = [];
+        let infoWindow;
+        let currentPagination = null;
+        let allFetchedPages = []; 
+        let currentPageIndex = 0; 
+        let userPosition = null; 
+        let userLocationMarker = null;
+        
+        const DEFAULT_LOCATION = { lat: 40.4554, lng: -3.4697 };
+
+        function initMap() {
+            userPosition = DEFAULT_LOCATION; 
+            map = new google.maps.Map(document.getElementById('globalMap'), {
+                center: userPosition,
+                zoom: 13,
+                mapTypeControl: false,
+                streetViewControl: false,
+                zoomControl: true,
+                zoomControlOptions: {
+                    position: google.maps.ControlPosition.RIGHT_TOP
+                }
+            });
+            placesService = new google.maps.places.PlacesService(map);
+            infoWindow = new google.maps.InfoWindow();
+            
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        userPosition = {
+                            lat: position.coords.latitude,
+                            lng: position.coords.longitude,
+                        };
+                        map.setCenter(userPosition);
+                        map.setZoom(14);
+                        
+                        userLocationMarker = new google.maps.Marker({
+                            position: userPosition,
+                            map: map,
+                            title: "Tu ubicación actual",
+                            icon: {
+                                path: google.maps.SymbolPath.CIRCLE,
+                                scale: 8,
+                                fillColor: "#4285F4",
+                                fillOpacity: 1,
+                                strokeColor: "#ffffff",
+                                strokeWeight: 2,
+                            }
+                        });
+                        startNewSearch();
+                    },
+                    (error) => {
+                        startNewSearch();
+                    },
+                    { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+                );
+            } else {
+                startNewSearch();
+            }
+        }
+
+        function centerOnUserLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        userPosition = {
+                            lat: position.coords.latitude,
+                            lng: position.coords.longitude,
+                        };
+
+                        if (userLocationMarker) {
+                            userLocationMarker.setMap(null);
+                        }
+
+                        userLocationMarker = new google.maps.Marker({
+                            position: userPosition,
+                            map: map,
+                            title: "Tu ubicación actual",
+                            icon: {
+                                path: google.maps.SymbolPath.CIRCLE,
+                                scale: 8,
+                                fillColor: "#4285F4",
+                                fillOpacity: 1,
+                                strokeColor: "#ffffff",
+                                strokeWeight: 2,
+                            }
+                        });
+
+                        map.setCenter(userPosition);
+                        map.setZoom(15);
+                        startNewSearch(); 
+                    },
+                    (error) => {
+                        alert("No se pudo obtener tu ubicación. Comprueba los permisos en tu navegador.");
+                        console.error(error);
+                    },
+                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                );
+            } else {
+                alert("Tu navegador no soporta geolocalización.");
+            }
+        }
+
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371e3; 
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c; 
+        }
+
+        function toggleDropdown(dropdownId) {
+            const currentDrop = document.getElementById(dropdownId);
+            const isActive = currentDrop.classList.contains('active');
+            document.querySelectorAll('.dropdown-filter').forEach(d => d.classList.remove('active'));
+            if (!isActive) {
+                currentDrop.classList.add('active');
+            }
+        }
+
+        window.addEventListener('click', function(e) {
+            if (!e.target.closest('.dropdown-filter')) {
+                document.querySelectorAll('.dropdown-filter').forEach(d => d.classList.remove('active'));
+            }
+        });
+
+        function resetFilterGroup(containerId, type, callback) {
+            const container = document.getElementById(containerId);
+            if (type === 'radiusOption') {
+                const radios = container.querySelectorAll('input[type="radio"]');
+                if (radios.length > 0) radios[0].checked = true;
+            } else {
+                const checkboxes = container.querySelectorAll('input[type="checkbox"]');
+                checkboxes.forEach(cb => cb.checked = false);
+            }
+            callback();
+        }
+
+        function handleRadiusChange() {
+            document.getElementById('dropRadius').classList.remove('active');
+            processAndRenderCurrentPage();
+        }
+
+        function forceDataSync() {
+            const btn = document.querySelector('.btn-sync');
+            btn.textContent = "Sincronizando...";
+            startNewSearch();
+            setTimeout(() => { btn.textContent = "Actualizar Datos"; }, 800);
+        }
+
+        function startNewSearch() {
+            if (!placesService) return;
+
+            document.getElementById('venuesContainer').innerHTML = '<div id="loader" style="display:block;">Consultando a Google Maps... Por favor, espera.</div>';
+            document.getElementById('paginationControls').style.display = 'none';
+            document.getElementById('resultsCount').textContent = 'Buscando recomendaciones de Maps...';
+            
+            clearMarkers();
+            allFetchedPages = [];
+            currentPageIndex = 0;
+            currentPagination = null;
+
+            const textInput = document.getElementById('searchInput').value.trim();
+            const selectedTypes = getCheckedValues('typeCheckboxes');
+            const selectedCuisines = getCheckedValues('cuisineCheckboxes');
+
+            let queryParts = [];
+            if (selectedCuisines.length > 0) queryParts.push(selectedCuisines.join(" o "));
+            if (selectedTypes.length > 0) queryParts.push(selectedTypes.join(" "));
+            else if (queryParts.length === 0) queryParts.push("Restaurantes y bares recomendados");
+
+            if (textInput) queryParts.push(textInput);
+
+            const request = {
+                location: userPosition, 
+                radius: '10000', 
+                query: queryParts.join(" ")
+            };
+
+            placesService.textSearch(request, handlePlacesResponse);
+        }
+
+        function handlePlacesResponse(results, status, pagination) {
+            const loader = document.getElementById('loader');
+            if (loader) loader.style.display = 'none';
+
+            if (status === google.maps.places.PlacesServiceStatus.OK && results.length > 0) {
+                allFetchedPages.push(results); 
+                currentPagination = pagination; 
+
+                processAndRenderCurrentPage();
+            } else {
+                document.getElementById('venuesContainer').innerHTML = `<div class="no-results" style="grid-column: 1/-1; text-align:center; padding:30px;">Google Maps no ha devuelto locales para esta búsqueda.</div>`;
+                document.getElementById('resultsCount').textContent = '0 resultados';
+                document.getElementById('mapCounterBadge').textContent = '0 chinchetas';
+                document.getElementById('paginationControls').style.display = 'none';
+            }
+        }
+
+        function changePage(direction) {
+            const newIndex = currentPageIndex + direction;
+
+            if (newIndex >= 0 && newIndex < allFetchedPages.length) {
+                currentPageIndex = newIndex;
+                processAndRenderCurrentPage();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            } else if (direction > 0 && currentPagination && currentPagination.hasNextPage) {
+                document.getElementById('venuesContainer').innerHTML = '<div id="loader" style="display:block;">Cargando página de Google...</div>';
+                currentPagination.nextPage((results, status) => {
+                    if (status === google.maps.places.PlacesServiceStatus.OK && results.length > 0) {
+                        allFetchedPages.push(results);
+                        currentPageIndex++;
+                        processAndRenderCurrentPage();
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }
+                });
+            }
+        }
+
+        function processAndRenderCurrentPage() {
+            if (allFetchedPages.length === 0) return;
+
+            const radiusRadio = document.querySelector('input[name="radiusOption"]:checked');
+            const maxDistance = radiusRadio && radiusRadio.value ? parseFloat(radiusRadio.value) : null;
+            
+            const selectedPrices = getCheckedValues('priceCheckboxes');
+            const selectedRatings = getCheckedValues('ratingCheckboxes');
+
+            let currentPageResults = allFetchedPages[currentPageIndex] || [];
+
+            let processedResults = currentPageResults.map(place => {
+                const loc = place.geometry.location;
+                const lat = typeof loc.lat === 'function' ? loc.lat() : loc.lat;
+                const lng = typeof loc.lng === 'function' ? loc.lng() : loc.lng;
+                const dist = calculateDistance(userPosition.lat, userPosition.lng, lat, lng);
+                return { ...place, calculatedDistance: dist };
+            });
+
+            if (maxDistance !== null) {
+                processedResults = processedResults.filter(p => p.calculatedDistance <= maxDistance);
+            }
+
+            if (selectedPrices.length > 0) {
+                processedResults = processedResults.filter(p => p.price_level && selectedPrices.includes(String(p.price_level)));
+            }
+
+            if (selectedRatings.length > 0) {
+                const minRating = Math.min(...selectedRatings.map(r => parseFloat(r)));
+                processedResults = processedResults.filter(p => p.rating && p.rating >= minRating);
+            }
+
+            processedResults.sort((a, b) => a.calculatedDistance - b.calculatedDistance);
+
+            renderPlaces(processedResults);
+            addMarkers(processedResults);
+
+            // CÁLCULO ESTRICTO DE PÁGINAS REALES
+            const hasMoreGooglePages = currentPagination && currentPagination.hasNextPage;
+            const totalAvailablePages = allFetchedPages.length + (hasMoreGooglePages ? 1 : 0);
+
+            document.getElementById('pageIndicator').textContent = `Página ${currentPageIndex + 1} de ${totalAvailablePages}`;
+            
+            // Bloqueo estricto del botón Retroceder si estamos en la primera página
+            document.getElementById('prevPageBtn').disabled = (currentPageIndex === 0);
+            
+            // Bloqueo estricto del botón Siguiente si ya no hay más páginas en memoria ni en Google Maps
+            const isLastLoadedPage = (currentPageIndex === allFetchedPages.length - 1);
+            document.getElementById('nextPageBtn').disabled = (isLastLoadedPage && !hasMoreGooglePages);
+
+            document.getElementById('paginationControls').style.display = 'flex';
+
+            document.getElementById('resultsCount').textContent = `${processedResults.length} locales en esta página`;
+            document.getElementById('mapCounterBadge').textContent = `${processedResults.length} chinchetas`;
+        }
+
+        function getCheckedValues(containerId) {
+            const checkboxes = document.querySelectorAll(`#${containerId} input[type="checkbox"]:checked`);
+            return Array.from(checkboxes).map(cb => cb.value);
+        }
+
+        function renderPlaces(places) {
+            const container = document.getElementById('venuesContainer');
+            container.innerHTML = '';
+
+            if (places.length === 0) {
+                container.innerHTML = `<div class="no-results" style="grid-column: 1/-1; text-align:center; padding:30px;">Ningún local en esta página cumple con los filtros seleccionados. Prueba a navegar a otra página o cambiar criterios.</div>`;
+                return;
+            }
+
+            places.forEach(place => {
+                const card = document.createElement('div');
+                card.className = 'venue-card';
+
+                let photoUrl = '';
+                if (place.photos && place.photos.length > 0) {
+                    photoUrl = place.photos[0].getUrl({ maxWidth: 400, maxHeight: 200 });
+                }
+                const photoHtml = photoUrl 
+                    ? `<div class="gm-photo" style="background-image: url('${photoUrl}');"></div>` 
+                    : `<div class="gm-photo" style="display:flex; align-items:center; justify-content:center; color:#9aa0a6;">Sin imagen</div>`;
+
+                let ratingHtml = '';
+                if (place.rating) {
+                    const starsCount = Math.round(place.rating);
+                    const totalReviews = place.user_ratings_total ? `(${place.user_ratings_total})` : '';
+                    ratingHtml = `<span style="color:var(--gm-yellow);">★</span> <span style="color:var(--gm-dark); font-weight:500;">${place.rating.toFixed(1)}</span> <span style="color:var(--gm-gray); font-size:0.8rem;">${totalReviews}</span>`;
+                } else {
+                    ratingHtml = `<span style="color:var(--gm-gray); font-style:italic;">No disponible</span>`;
+                }
+
+                let priceStr = '';
+                if (place.price_level) priceStr = '· ' + '€'.repeat(place.price_level);
+
+                let distText = '';
+                if (place.calculatedDistance < 1000) {
+                    distText = `Aprox. ${Math.round(place.calculatedDistance)} metros`;
+                } else {
+                    distText = `Aprox. ${(place.calculatedDistance / 1000).toFixed(2)} km`;
+                }
+
+                const mapUrl = `https://www.google.com/maps/place/?q=place_id:${place.place_id}`;
+                const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination_place_id=${place.place_id}`;
+
+                card.innerHTML = `
+                    ${photoHtml}
+                    <div class="venue-body">
+                        <h3 class="gm-title">${place.name}</h3>
+                        <div class="gm-rating">
+                            ${ratingHtml} ${priceStr}
+                        </div>
+                        <div class="gm-distance-tag">📍 ${distText} de ti</div>
+                        <div class="gm-address">
+                            <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+                            <span>${place.formatted_address || place.vicinity}</span>
+                        </div>
+                    </div>
+                    <div class="venue-footer">
+                        <a href="${directionsUrl}" target="_blank" class="gm-btn btn-directions">Cómo llegar</a>
+                        <a href="${mapUrl}" target="_blank" class="gm-btn btn-outline">Ver Horarios en Maps</a>
+                    </div>
+                `;
+
+                container.appendChild(card);
+            });
+        }
+
+        function addMarkers(places) {
+            clearMarkers();
+            const bounds = new google.maps.LatLngBounds();
+
+            if (userPosition) {
+                bounds.extend(userPosition);
+            }
+
+            places.forEach(place => {
+                if (!place.geometry || !place.geometry.location) return;
+
+                const marker = new google.maps.Marker({
+                    map: map,
+                    position: place.geometry.location,
+                    title: place.name
+                });
+
+                google.maps.event.addListener(marker, 'click', () => {
+                    infoWindow.setContent(`
+                        <div style="padding: 5px;">
+                            <strong>${place.name}</strong><br>
+                            ${place.formatted_address || place.vicinity}<br>
+                            <a href="https://www.google.com/maps/place/?q=place_id:${place.place_id}" target="_blank" style="color:var(--gm-blue); text-decoration:none; display:block; margin-top:5px;">Abrir ficha completa</a>
+                        </div>
+                    `);
+                    infoWindow.open(map, marker);
+                });
+
+                googleMarkers.push(marker);
+                bounds.extend(place.geometry.location);
+            });
+
+            if (googleMarkers.length > 0) {
+                map.fitBounds(bounds);
+            } else {
+                map.setCenter(userPosition);
+                map.setZoom(13);
+            }
+        }
+
+        function clearMarkers() {
+            googleMarkers.forEach(marker => marker.setMap(null));
+            googleMarkers = [];
+        }
+
+        document.getElementById('searchInput').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') startNewSearch();
+        });
+    </script>
+</body>
+</html>
