@@ -212,7 +212,59 @@
         }
         .reset-filter-btn:hover { background-color: var(--gm-red-bg); }
 
-        .results-info { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; font-size: 0.9rem; color: var(--gm-gray); }
+        .results-info { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; font-size: 0.9rem; color: var(--gm-gray); flex-wrap: wrap; gap: 10px; }
+        .results-info-right { display: flex; align-items: center; gap: 10px; }
+
+        .view-toggle { display: flex; gap: 6px; background: var(--gm-hover-bg); padding: 4px; border-radius: 20px; }
+        .view-toggle-btn {
+            border: none; background: transparent; padding: 6px 14px; border-radius: 16px; font-size: 0.82rem;
+            font-weight: 500; cursor: pointer; color: var(--gm-gray);
+        }
+        .view-toggle-btn.active { background: var(--gm-card-bg); color: var(--gm-blue); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+
+        .btn-favorites {
+            border: 1px solid var(--gm-border); background: var(--gm-card-bg); padding: 6px 14px; border-radius: 20px;
+            font-size: 0.82rem; font-weight: 500; color: var(--gm-dark); cursor: pointer;
+        }
+        .btn-favorites:hover { background-color: var(--gm-hover-bg); }
+
+        /* Vista de descubrimiento tipo swipe */
+        .swipe-container { display: flex; flex-direction: column; align-items: center; gap: 24px; margin: 10px 0 40px 0; }
+        .swipe-card {
+            width: 100%; max-width: 380px; background: var(--gm-card-bg); border: 1px solid var(--gm-border);
+            border-radius: 18px; overflow: hidden; box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+            touch-action: none; cursor: grab; user-select: none; will-change: transform;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+        }
+        .swipe-card:active { cursor: grabbing; }
+        .swipe-card.dragging { transition: none; }
+        .swipe-card-photo { width: 100%; height: 320px; background-color: var(--gm-hover-bg); background-size: cover; background-position: center; }
+        .swipe-card-body { padding: 20px; }
+        .swipe-card-title { font-family: 'Poppins', sans-serif; font-size: 1.3rem; color: var(--gm-dark); margin-bottom: 8px; }
+        .swipe-card-meta { font-size: 0.95rem; color: var(--gm-dark); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+        .swipe-card-distance { font-size: 0.85rem; color: var(--gm-blue); font-weight: 500; margin-bottom: 8px; }
+        .swipe-card-address { font-size: 0.85rem; color: var(--gm-gray); }
+        .swipe-actions { display: flex; gap: 28px; }
+        .swipe-btn {
+            width: 60px; height: 60px; border-radius: 50%; font-size: 1.5rem; cursor: pointer;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.18); border: none;
+        }
+        .swipe-btn-discard { background: var(--gm-card-bg); color: var(--gm-red); border: 2px solid var(--gm-red); }
+        .swipe-btn-like { background: var(--gm-green); color: #fff; }
+        .swipe-progress { font-size: 0.85rem; color: var(--gm-gray); }
+        .swipe-empty { text-align: center; padding: 60px 20px; color: var(--gm-gray); max-width: 380px; }
+
+        .favorites-list { display: flex; flex-direction: column; gap: 10px; max-height: 50vh; overflow-y: auto; margin-bottom: 16px; }
+        .favorite-item {
+            display: flex; justify-content: space-between; align-items: center; gap: 10px;
+            border: 1px solid var(--gm-border); border-radius: 10px; padding: 10px 14px;
+        }
+        .favorite-item-info { font-size: 0.85rem; }
+        .favorite-item-info strong { display: block; font-size: 0.95rem; color: var(--gm-dark); }
+        .favorite-item-actions { display: flex; gap: 8px; align-items: center; }
+        .favorite-item-actions a { font-size: 0.8rem; color: var(--gm-blue); text-decoration: none; }
+        .favorite-remove-btn { background: none; border: none; color: var(--gm-red); cursor: pointer; font-size: 1rem; }
+        .favorites-empty { text-align: center; color: var(--gm-gray); padding: 30px 0; }
 
         /* Fichas Estilo Google Maps */
         .venues-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
@@ -503,7 +555,13 @@
 
         <div class="results-info">
             <span id="resultsCount">Esperando realizar búsqueda...</span>
-            <span style="color:var(--gm-green); font-weight:500;">✓ Sincronizado con Google Maps</span>
+            <div class="results-info-right">
+                <div class="view-toggle">
+                    <button type="button" class="view-toggle-btn active" data-mode="grid" onclick="setViewMode('grid')">▦ Rejilla</button>
+                    <button type="button" class="view-toggle-btn" data-mode="swipe" onclick="setViewMode('swipe')">🔀 Descubrir</button>
+                </div>
+                <button type="button" class="btn-favorites" onclick="openFavoritesDialog()" title="Ver favoritos guardados">❤️ <span id="favoritesCount">0</span></button>
+            </div>
         </div>
 
         <section id="venuesContainer" class="venues-grid">
@@ -516,7 +574,19 @@
             <span class="page-indicator" id="pageIndicator">Página 1 de 1</span>
             <button class="btn-page" id="nextPageBtn" onclick="changePage(1)">Siguiente</button>
         </div>
+
+        <!-- Vista de descubrimiento tipo swipe -->
+        <div id="swipeContainer" class="swipe-container" style="display:none;"></div>
     </main>
+
+    <!-- Diálogo de favoritos guardados -->
+    <dialog id="favoritesDialog" class="apikey-dialog">
+        <h2>❤️ Tus favoritos</h2>
+        <div id="favoritesList" class="favorites-list"></div>
+        <div class="apikey-dialog-actions">
+            <button type="button" class="btn-action btn-outline-dialog" onclick="document.getElementById('favoritesDialog').close()">Cerrar</button>
+        </div>
+    </dialog>
 
     <!-- La API de Google Maps ya NO se carga con una clave fija en el HTML: se inyecta en
          tiempo de ejecución con la clave que el usuario introduce en el diálogo de configuración
@@ -611,6 +681,185 @@
 
         function getStoredValue(key) {
             return localStorage.getItem(key) || sessionStorage.getItem(key) || '';
+        }
+
+        // --- Favoritos: solo texto (nombre, direccion, rating, precio, id), sin foto ---
+        // Las URLs de fotos de Google caducan; guardarlas rompería los favoritos con el
+        // tiempo. Para ver la foto real, el enlace "Ver en Maps" siempre funciona.
+        const LS_FAVORITES = 'rb_favorites';
+        function getFavorites() {
+            try { return JSON.parse(localStorage.getItem(LS_FAVORITES) || '[]'); } catch (e) { return []; }
+        }
+        function isFavorite(placeId) {
+            return getFavorites().some(f => f.id === placeId);
+        }
+        function addFavorite(place) {
+            const list = getFavorites();
+            if (list.some(f => f.id === place.id)) return;
+            list.push({
+                id: place.id,
+                displayName: place.displayName,
+                formattedAddress: place.formattedAddress,
+                rating: place.rating || null,
+                userRatingCount: place.userRatingCount || null,
+                priceLevel: place.priceLevel || null,
+                savedAt: Date.now()
+            });
+            localStorage.setItem(LS_FAVORITES, JSON.stringify(list));
+            updateFavoritesCount();
+        }
+        function removeFavorite(placeId) {
+            localStorage.setItem(LS_FAVORITES, JSON.stringify(getFavorites().filter(f => f.id !== placeId)));
+            updateFavoritesCount();
+            renderFavoritesList();
+        }
+        function updateFavoritesCount() {
+            document.getElementById('favoritesCount').textContent = getFavorites().length;
+        }
+        function openFavoritesDialog() {
+            renderFavoritesList();
+            document.getElementById('favoritesDialog').showModal();
+        }
+        function renderFavoritesList() {
+            const list = getFavorites();
+            const container = document.getElementById('favoritesList');
+            if (list.length === 0) {
+                container.innerHTML = '<div class="favorites-empty">Todavía no has guardado ningún sitio. Deslízalo a la derecha (o pulsa ❤️) en la vista "Descubrir" para guardarlo.</div>';
+                return;
+            }
+            container.innerHTML = list.slice().reverse().map(f => {
+                const priceLevelNum = priceLevelToNumber(f.priceLevel);
+                const priceStr = priceLevelNum ? ' · ' + '€'.repeat(priceLevelNum) : '';
+                const ratingStr = f.rating ? `★ ${f.rating.toFixed(1)}` : 'Sin valoración';
+                const mapUrl = `https://www.google.com/maps/place/?q=place_id:${encodeURIComponent(f.id)}`;
+                const safeId = f.id.replace(/'/g, "\\'");
+                return `
+                    <div class="favorite-item">
+                        <div class="favorite-item-info">
+                            <strong>${escapeHtml(f.displayName)}</strong>
+                            ${ratingStr}${priceStr}<br>
+                            <span style="color:var(--gm-gray);">${escapeHtml(f.formattedAddress || '')}</span>
+                        </div>
+                        <div class="favorite-item-actions">
+                            <a href="${mapUrl}" target="_blank">Ver en Maps</a>
+                            <button type="button" class="favorite-remove-btn" onclick="removeFavorite('${safeId}')" title="Quitar de favoritos">✕</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        updateFavoritesCount();
+
+        // --- Vista de descubrimiento tipo swipe ---
+        let viewMode = 'grid';
+        let swipeIndex = 0;
+
+        function setViewMode(mode) {
+            viewMode = mode;
+            document.querySelectorAll('.view-toggle-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+            document.getElementById('venuesContainer').style.display = mode === 'grid' ? '' : 'none';
+            document.getElementById('swipeContainer').style.display = mode === 'swipe' ? 'flex' : 'none';
+            document.getElementById('paginationControls').style.display = (mode === 'grid' && filteredPlaces.length > 0) ? 'flex' : 'none';
+            if (mode === 'swipe') {
+                swipeIndex = 0;
+                renderSwipeCard();
+            }
+        }
+
+        function renderSwipeCard() {
+            const container = document.getElementById('swipeContainer');
+            if (filteredPlaces.length === 0) {
+                container.innerHTML = '<div class="swipe-empty">Todavía no hay resultados que explorar. Haz una búsqueda primero.</div>';
+                return;
+            }
+            if (swipeIndex >= filteredPlaces.length) {
+                container.innerHTML = '<div class="swipe-empty">Has visto todos los locales de esta búsqueda 🎉<br>Prueba a cambiar de filtros o busca otra cosa.</div>';
+                return;
+            }
+
+            const place = filteredPlaces[swipeIndex];
+            let photoUrl = '';
+            if (place.photos && place.photos.length > 0) {
+                photoUrl = place.photos[0].getURI({ maxWidth: 500, maxHeight: 400 });
+            }
+            const photoHtml = photoUrl
+                ? `<div class="swipe-card-photo" style="background-image:url('${photoUrl}');"></div>`
+                : `<div class="swipe-card-photo" style="display:flex;align-items:center;justify-content:center;color:var(--gm-photo-empty-text);">Sin imagen</div>`;
+
+            const ratingStr = place.rating
+                ? `★ ${place.rating.toFixed(1)} ${place.userRatingCount ? '(' + place.userRatingCount + ')' : ''}`
+                : 'Sin valoración';
+            const priceLevelNum = priceLevelToNumber(place.priceLevel);
+            const priceStr = priceLevelNum ? ' · ' + '€'.repeat(priceLevelNum) : '';
+
+            const distText = place.calculatedDistance < 1000
+                ? `📍 Aprox. ${Math.round(place.calculatedDistance)} metros de ti`
+                : `📍 Aprox. ${(place.calculatedDistance / 1000).toFixed(2)} km de ti`;
+
+            container.innerHTML = `
+                <div class="swipe-progress">${swipeIndex + 1} de ${filteredPlaces.length}</div>
+                <div class="swipe-card" id="activeSwipeCard">
+                    ${photoHtml}
+                    <div class="swipe-card-body">
+                        <div class="swipe-card-title">${escapeHtml(place.displayName)}</div>
+                        <div class="swipe-card-meta">${ratingStr}${priceStr}</div>
+                        <div class="swipe-card-distance">${distText}</div>
+                        <div class="swipe-card-address">${escapeHtml(place.formattedAddress)}</div>
+                    </div>
+                </div>
+                <div class="swipe-actions">
+                    <button type="button" class="swipe-btn swipe-btn-discard" onclick="swipeDecision(false)" title="Descartar">✕</button>
+                    <button type="button" class="swipe-btn swipe-btn-like" onclick="swipeDecision(true)" title="Guardar en favoritos">❤️</button>
+                </div>
+            `;
+
+            attachSwipeGesture(document.getElementById('activeSwipeCard'));
+        }
+
+        function swipeDecision(liked) {
+            const place = filteredPlaces[swipeIndex];
+            if (liked && place) addFavorite(place);
+            swipeIndex++;
+            renderSwipeCard();
+        }
+
+        // Arrastre con Pointer Events (unifica ratón y táctil): mueve/rota la tarjeta con
+        // el dedo/ratón, y si se suelta pasado el umbral, decide como un swipe de verdad;
+        // si no, vuelve al centro.
+        function attachSwipeGesture(card) {
+            let startX = 0, currentX = 0, dragging = false;
+
+            card.addEventListener('pointerdown', (e) => {
+                dragging = true;
+                startX = e.clientX;
+                card.classList.add('dragging');
+                card.setPointerCapture(e.pointerId);
+            });
+            card.addEventListener('pointermove', (e) => {
+                if (!dragging) return;
+                currentX = e.clientX - startX;
+                card.style.transform = `translateX(${currentX}px) rotate(${currentX / 20}deg)`;
+            });
+            const endDrag = () => {
+                if (!dragging) return;
+                dragging = false;
+                card.classList.remove('dragging');
+                const threshold = 100;
+                if (currentX > threshold) {
+                    card.style.transform = 'translateX(600px) rotate(25deg)';
+                    card.style.opacity = '0';
+                    setTimeout(() => swipeDecision(true), 200);
+                } else if (currentX < -threshold) {
+                    card.style.transform = 'translateX(-600px) rotate(-25deg)';
+                    card.style.opacity = '0';
+                    setTimeout(() => swipeDecision(false), 200);
+                } else {
+                    card.style.transform = '';
+                }
+                currentX = 0;
+            };
+            card.addEventListener('pointerup', endDrag);
+            card.addEventListener('pointercancel', endDrag);
         }
 
         function openApiKeyDialog() {
@@ -1209,10 +1458,13 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
             document.getElementById('pageIndicator').textContent = `Página ${currentPageIndex + 1} de ${totalPages}`;
             document.getElementById('prevPageBtn').disabled = (currentPageIndex === 0);
             document.getElementById('nextPageBtn').disabled = (currentPageIndex === totalPages - 1);
-            document.getElementById('paginationControls').style.display = filteredPlaces.length > 0 ? 'flex' : 'none';
+            document.getElementById('paginationControls').style.display = (viewMode === 'grid' && filteredPlaces.length > 0) ? 'flex' : 'none';
 
             document.getElementById('resultsCount').textContent = `${filteredPlaces.length} locales encontrados`;
             document.getElementById('mapCounterBadge').textContent = `${pagePlaces.length} chinchetas`;
+
+            swipeIndex = 0;
+            if (viewMode === 'swipe') renderSwipeCard();
         }
 
         function getCheckedValues(containerId) {
