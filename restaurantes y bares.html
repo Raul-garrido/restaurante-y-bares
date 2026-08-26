@@ -83,11 +83,6 @@
         header h1 { font-family: 'Poppins', 'Inter', sans-serif; font-size: 2rem; color: var(--gm-dark); margin-bottom: 6px; }
         header p { color: var(--gm-gray); font-size: 1rem; }
         .container { max-width: 1200px; margin: 0 auto; }
-        .btn-theme-toggle {
-            position: absolute; top: 0; right: 0; background: var(--gm-card-bg); border: 1px solid var(--gm-border);
-            border-radius: 20px; width: 38px; height: 38px; font-size: 1.1rem; cursor: pointer;
-        }
-        .btn-theme-toggle:hover { background-color: var(--gm-hover-bg); }
 
         /* Mapa General y Botón de Geolocalización */
         .global-map-section {
@@ -274,13 +269,15 @@
 
         #loader { text-align: center; padding: 40px; color: var(--gm-gray); font-size: 1.1rem; display: none; grid-column: 1 / -1; }
 
-        /* Botón y diálogo de configuración de API Keys */
-        .btn-settings {
+        /* Botón y diálogo de configuración de API Keys: ahora solo icono, en la esquina,
+           junto al de tema, para que no compita visualmente con el título. */
+        .header-corner-actions { position: absolute; top: 0; right: 0; display: flex; gap: 8px; }
+        .btn-settings, .btn-theme-toggle {
             background-color: var(--gm-card-bg); color: var(--gm-dark); border: 1px solid var(--gm-border);
-            padding: 6px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 500;
-            cursor: pointer; margin-top: 10px;
+            border-radius: 20px; width: 38px; height: 38px; font-size: 1.1rem;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
         }
-        .btn-settings:hover { background-color: var(--gm-hover-bg); }
+        .btn-settings:hover, .btn-theme-toggle:hover { background-color: var(--gm-hover-bg); }
 
         dialog.apikey-dialog {
             border: none; border-radius: 12px; padding: 24px; max-width: 480px; width: 90vw;
@@ -310,6 +307,10 @@
             font-size: 0.8rem; cursor: pointer; padding: 2px 0;
         }
         .apikey-help { font-size: 0.75rem; color: var(--gm-gray); margin: 0; }
+        /* Enmascara el texto como si fuera type="password" pero sin serlo de verdad, para
+           que Chrome no ofrezca "guardar contraseña" (eso pasa con cualquier input
+           type="password", incluso si luego lo cancelas cada vez). */
+        .apikey-field-body input.masked { -webkit-text-security: disc; }
 
         .apikey-remember { display: flex; align-items: flex-start; gap: 8px; font-size: 0.82rem; color: var(--gm-dark); margin: 14px 0; cursor: pointer; }
 
@@ -349,8 +350,10 @@
     <header>
         <h1>Directorio Gastronómico con Geolocalización</h1>
         <p>Recomendaciones en directo basadas en proximidad GPS y mapas oficiales de Google.</p>
-        <button class="btn-settings" onclick="openApiKeyDialog()">⚙️ Configurar API Keys</button>
-        <button class="btn-theme-toggle" onclick="toggleTheme()" title="Cambiar tema claro/oscuro" id="themeToggleBtn">🌙</button>
+        <div class="header-corner-actions">
+            <button class="btn-settings" onclick="openApiKeyDialog()" title="Configurar API Keys">⚙️</button>
+            <button class="btn-theme-toggle" onclick="toggleTheme()" title="Cambiar tema claro/oscuro" id="themeToggleBtn">🌙</button>
+        </div>
     </header>
 
     <!-- Diálogo de configuración: claves guardadas solo en este navegador (localStorage/sessionStorage),
@@ -363,7 +366,7 @@
             <summary>🗺️ Google Maps <span class="apikey-status">(obligatoria)</span></summary>
             <div class="apikey-field-body">
                 <label for="mapsApiKeyInput">Clave de Google Maps</label>
-                <input type="password" id="mapsApiKeyInput" placeholder="AIza...">
+                <input type="text" id="mapsApiKeyInput" class="masked" placeholder="AIza..." autocomplete="off" spellcheck="false">
                 <button type="button" class="apikey-toggle-visibility" onclick="toggleKeyVisibility('mapsApiKeyInput', this)">👁️ Mostrar</button>
                 <p class="apikey-help">Necesaria para que el directorio funcione. Debe tener habilitadas "Maps JavaScript API" y "Places API (New)" en Google Cloud Console, y estar restringida a tu dominio.</p>
             </div>
@@ -379,7 +382,7 @@
                     <option value="other">Otro</option>
                 </select>
                 <label for="aiApiKeyInput">Clave de API</label>
-                <input type="password" id="aiApiKeyInput" placeholder="Clave del proveedor de IA elegido">
+                <input type="text" id="aiApiKeyInput" class="masked" placeholder="Clave del proveedor de IA elegido" autocomplete="off" spellcheck="false">
                 <button type="button" class="apikey-toggle-visibility" onclick="toggleKeyVisibility('aiApiKeyInput', this)">👁️ Mostrar</button>
                 <p class="apikey-help">De momento solo se guarda: todavía no hay ninguna función que la use en el directorio.</p>
             </div>
@@ -625,9 +628,8 @@
 
         function toggleKeyVisibility(inputId, btn) {
             const input = document.getElementById(inputId);
-            const showing = input.type === 'text';
-            input.type = showing ? 'password' : 'text';
-            btn.textContent = showing ? '👁️ Mostrar' : '🙈 Ocultar';
+            const nowMasked = input.classList.toggle('masked');
+            btn.textContent = nowMasked ? '👁️ Mostrar' : '🙈 Ocultar';
         }
 
         function saveApiKeys() {
