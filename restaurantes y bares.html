@@ -151,21 +151,35 @@
         .map-fullscreen-bar .btn-icon-action { background: var(--gm-card-bg); box-shadow: 0 2px 8px rgba(0,0,0,0.25); }
 
         /* Ficha de detalle al tocar una chincheta del mapa (sustituye al InfoWindow
-           básico de Google), funciona igual en el mapa normal y en el de pantalla
-           completa. */
-        .map-detail-card {
-            position: absolute; left: 0; right: 0; bottom: 0; z-index: 7;
-            background: var(--gm-card-bg); border-radius: 18px 18px 0 0; box-shadow: 0 -8px 24px rgba(0,0,0,0.2);
-            padding: 16px 18px 18px 18px; max-height: 60%; overflow-y: auto;
+           básico de Google): ventana centrada con fondo oscurecido, para que quede claro
+           que estás viendo la ficha y no el mapa. Tocar el fondo o el botón ✕ cierra y
+           vuelve al mapa. Funciona igual en el mapa normal y en el de pantalla completa. */
+        .map-detail-backdrop {
+            position: absolute; inset: 0; z-index: 6; background: rgba(0,0,0,0.45);
         }
-        .global-map-section.fullscreen-map .map-detail-card { position: fixed; z-index: 2001; }
+        .global-map-section.fullscreen-map .map-detail-backdrop { position: fixed; z-index: 2001; }
+        .map-detail-card {
+            position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 7;
+            background: var(--gm-card-bg); border-radius: 18px; box-shadow: 0 16px 40px rgba(0,0,0,0.3);
+            padding: 18px 20px 20px 20px; width: 90%; max-width: 380px; max-height: 80%; overflow-y: auto;
+        }
+        .global-map-section.fullscreen-map .map-detail-card { position: fixed; z-index: 2002; }
         .map-detail-close {
             position: absolute; top: 10px; right: 10px; background: var(--gm-hover-bg);
             border-radius: 50%; width: 28px; height: 28px;
         }
-        .map-detail-photo { width: 100%; height: 140px; border-radius: 12px; background-size: cover; background-position: center; background-color: var(--gm-hover-bg); margin-bottom: 10px; }
-        .map-detail-title { font-family: 'Poppins', sans-serif; font-size: 1.1rem; font-weight: 600; margin-bottom: 4px; padding-right: 30px; }
-        .map-detail-meta { font-size: 0.85rem; color: var(--gm-gray); margin-bottom: 4px; }
+        .map-detail-photo { width: 100%; height: 160px; border-radius: 12px; background-size: cover; background-position: center; background-color: var(--gm-hover-bg); margin-bottom: 10px; }
+        .map-detail-title { font-family: 'Poppins', sans-serif; font-size: 1.15rem; font-weight: 600; margin-bottom: 4px; padding-right: 30px; }
+        .map-detail-meta { font-size: 0.85rem; color: var(--gm-gray); margin-bottom: 6px; }
+        .map-detail-status { font-size: 0.78rem; font-weight: 700; padding: 3px 10px; border-radius: 12px; display: inline-block; margin-bottom: 8px; }
+        .map-detail-status.is-open { background: var(--gm-hover-bg); color: var(--gm-green); }
+        .map-detail-status.is-closed { background: var(--gm-red-bg); color: var(--gm-red); }
+        .map-detail-hours { margin-bottom: 10px; }
+        .map-detail-hours summary {
+            cursor: pointer; font-size: 0.85rem; color: var(--gm-blue); font-weight: 600; list-style: none;
+        }
+        .map-detail-hours summary::-webkit-details-marker { display: none; }
+        .map-detail-hours-list { font-size: 0.8rem; color: var(--gm-gray); margin-top: 8px; line-height: 1.7; }
         .map-detail-address { font-size: 0.85rem; color: var(--gm-gray); margin-bottom: 12px; }
         .map-detail-actions { display: flex; gap: 8px; }
 
@@ -597,6 +611,7 @@
                 <!-- Ficha de detalle al tocar una chincheta: sustituye al InfoWindow básico
                      de Google, funciona igual en el mapa normal que en el de pantalla
                      completa. -->
+                <div class="map-detail-backdrop" id="mapDetailBackdrop" style="display:none;" onclick="closeMapDetailCard()"></div>
                 <div class="map-detail-card" id="mapDetailCard" style="display:none;">
                     <button class="ai-collapse-btn map-detail-close" onclick="closeMapDetailCard()" title="Cerrar ficha">✕</button>
                     <div id="mapDetailCardContent"></div>
@@ -881,7 +896,20 @@
                 userRatingCount: place.userRatingCount || null,
                 priceLevel: place.priceLevel || null,
                 location: { lat, lng },
-                photoUrl
+                photoUrl,
+                businessStatus: place.businessStatus || null,
+                openNow: place.regularOpeningHours ? !!place.regularOpeningHours.openNow : null,
+                weekdayDescriptions: place.regularOpeningHours && place.regularOpeningHours.weekdayDescriptions
+                    ? place.regularOpeningHours.weekdayDescriptions.slice()
+                    : null,
+                // Extraído campo a campo (no con spread): igual que con el resto de datos
+                // del Place, los sub-objetos de horario son getters, no propiedades planas.
+                periods: place.regularOpeningHours && place.regularOpeningHours.periods
+                    ? place.regularOpeningHours.periods.map(p => ({
+                        open: p.open ? { day: p.open.day, hour: p.open.hour, minute: p.open.minute } : null,
+                        close: p.close ? { day: p.close.day, hour: p.close.hour, minute: p.close.minute } : null
+                    }))
+                    : null
             };
         }
 
@@ -1586,7 +1614,10 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
             // por token/nextPage — máximo 20 resultados por llamada (maxResultCount).
             const request = {
                 textQuery: textQuery,
-                fields: ['id', 'displayName', 'formattedAddress', 'location', 'rating', 'userRatingCount', 'priceLevel', 'photos'],
+                // regularOpeningHours/businessStatus son campos "Enterprise" igual que
+                // rating/priceLevel/userRatingCount, que ya estábamos pidiendo -- no sube
+                // de nivel de precio, así que añadirlos no cuesta más por petición.
+                fields: ['id', 'displayName', 'formattedAddress', 'location', 'rating', 'userRatingCount', 'priceLevel', 'photos', 'regularOpeningHours', 'businessStatus'],
                 maxResultCount: 20,
             };
             if (!options.skipLocationBias) {
@@ -1819,6 +1850,34 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
         // Ficha de detalle al tocar una chincheta del mapa: mismo contenido que una
         // tarjeta de la rejilla, pero flotando sobre el propio mapa (funciona igual en
         // el mapa normal que en el de pantalla completa).
+        // Calcula si está abierto ahora mismo y, si cierra dentro de la próxima hora,
+        // a qué hora exactamente -- a partir de "periods" (no es un dato que de Google
+        // venga ya calculado como "cierra pronto", hay que mirarlo nosotros).
+        function getOpenStatus(place) {
+            if (place.openNow === null || place.openNow === undefined) return null;
+            if (!place.openNow) return { open: false, closingSoonText: null };
+
+            if (Array.isArray(place.periods)) {
+                const now = new Date();
+                const today = now.getDay();
+                const nowMinutes = now.getHours() * 60 + now.getMinutes();
+                for (const p of place.periods) {
+                    if (!p.open || !p.close || p.open.day !== today) continue;
+                    if (p.close.day !== today) continue; // cierra otro dia (pasa medianoche): no calculamos "cierra pronto" para ese caso
+                    const closeMinutes = p.close.hour * 60 + p.close.minute;
+                    if (closeMinutes <= nowMinutes) continue;
+                    const diff = closeMinutes - nowMinutes;
+                    if (diff <= 60) {
+                        const hh = String(p.close.hour).padStart(2, '0');
+                        const mm = String(p.close.minute).padStart(2, '0');
+                        return { open: true, closingSoonText: `Cierra pronto, a las ${hh}:${mm}` };
+                    }
+                    break;
+                }
+            }
+            return { open: true, closingSoonText: null };
+        }
+
         function showMapDetailCard(place) {
             const photoUrl = getPlacePhotoUrl(place, 400, 260);
             const photoHtml = photoUrl
@@ -1829,6 +1888,27 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
             const priceLevelNum = priceLevelToNumber(place.priceLevel);
             const priceStr = priceLevelNum ? ' · ' + '€'.repeat(priceLevelNum) : '';
 
+            const status = getOpenStatus(place);
+            let statusHtml = '';
+            if (status) {
+                if (status.open) {
+                    statusHtml = `<span class="map-detail-status is-open">${status.closingSoonText || 'Abierto ahora'}</span>`;
+                } else {
+                    statusHtml = `<span class="map-detail-status is-closed">Cerrado ahora</span>`;
+                }
+            }
+
+            let hoursHtml = '';
+            if (Array.isArray(place.weekdayDescriptions) && place.weekdayDescriptions.length > 0) {
+                const rows = place.weekdayDescriptions.map(d => `<div>${escapeHtml(d)}</div>`).join('');
+                hoursHtml = `
+                    <details class="map-detail-hours">
+                        <summary>Ver horario semanal</summary>
+                        <div class="map-detail-hours-list">${rows}</div>
+                    </details>
+                `;
+            }
+
             const mapUrl = `https://www.google.com/maps/place/?q=place_id:${encodeURIComponent(place.id)}`;
             const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination_place_id=${encodeURIComponent(place.id)}`;
 
@@ -1836,16 +1916,20 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
                 ${photoHtml}
                 <div class="map-detail-title">${escapeHtml(place.displayName)}</div>
                 <div class="map-detail-meta">${ratingStr}${totalReviews}${priceStr}</div>
+                ${statusHtml}
+                ${hoursHtml}
                 <div class="map-detail-address">${escapeHtml(place.formattedAddress)}</div>
                 <div class="map-detail-actions">
                     <a href="${directionsUrl}" target="_blank" class="gm-btn btn-directions">Cómo llegar</a>
                     <a href="${mapUrl}" target="_blank" class="gm-btn btn-outline">Ver en Maps</a>
                 </div>
             `;
+            document.getElementById('mapDetailBackdrop').style.display = 'block';
             document.getElementById('mapDetailCard').style.display = 'block';
         }
 
         function closeMapDetailCard() {
+            document.getElementById('mapDetailBackdrop').style.display = 'none';
             document.getElementById('mapDetailCard').style.display = 'none';
         }
 
@@ -1856,6 +1940,12 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
             const section = document.getElementById('mapSection');
             const isFullscreen = section.classList.toggle('fullscreen-map');
             document.getElementById('mapFullscreenBar').style.display = isFullscreen ? 'flex' : 'none';
+            // No basta con que el mapa se superponga (z-index): escondemos de verdad el
+            // resto de la página, para que "pantalla completa" signifique solo el mapa,
+            // sin resultados detrás asomando.
+            document.getElementById('layoutRight').style.display = isFullscreen ? 'none' : '';
+            document.querySelector('.hero').style.display = isFullscreen ? 'none' : '';
+            document.querySelector('.hero-search-wrap').style.display = isFullscreen ? 'none' : '';
             closeMapDetailCard();
             if (map) {
                 setTimeout(() => {
