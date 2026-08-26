@@ -825,6 +825,44 @@
             return getComputedStyle(document.documentElement).getPropertyValue('--gm-blue').trim() || '#0F766E';
         }
 
+        // Map ID (gratuito) creado en Google Cloud Console > Google Maps Platform > Gestión
+        // de mapas. Hace falta para poder usar marcadores AdvancedMarkerElement (el
+        // reemplazo moderno de google.maps.Marker, que Google tiene deprecado). Si se deja
+        // vacío, la app cae automáticamente en los marcadores clásicos -- no rompe nada.
+        const MAP_ID = '';
+
+        // Si hay Map ID y la librería 'marker' cargó, usamos AdvancedMarkerElement; si no,
+        // caemos en el Marker clásico (deprecado pero funcional). Así el código de arriba
+        // no tiene que saber cuál de los dos se está usando en cada caso.
+        function usingAdvancedMarkers() {
+            return !!(MAP_ID && window.google && google.maps.marker && google.maps.marker.AdvancedMarkerElement);
+        }
+
+        function removeMarker(marker) {
+            if (!marker) return;
+            if (usingAdvancedMarkers()) marker.map = null;
+            else marker.setMap(null);
+        }
+
+        function createGpsMarker(position, color) {
+            if (usingAdvancedMarkers()) {
+                const dot = document.createElement('div');
+                dot.style.cssText = `width:16px; height:16px; border-radius:50%; background:${color}; border:2px solid #ffffff; box-shadow:0 1px 3px rgba(0,0,0,0.4);`;
+                return new google.maps.marker.AdvancedMarkerElement({ map, position, title: 'Tu ubicación actual', content: dot });
+            }
+            return new google.maps.Marker({
+                map, position, title: 'Tu ubicación actual',
+                icon: { path: google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: color, fillOpacity: 1, strokeColor: '#ffffff', strokeWeight: 2 }
+            });
+        }
+
+        function createPlaceMarker(place) {
+            if (usingAdvancedMarkers()) {
+                return new google.maps.marker.AdvancedMarkerElement({ map, position: place.location, title: place.displayName });
+            }
+            return new google.maps.Marker({ map, position: place.location, title: place.displayName });
+        }
+
         // --- Gestión de claves API (Google Maps + búsqueda por IA en lenguaje natural) ---
         // Las claves solo viven en este navegador: en localStorage si el usuario marca
         // "recordar", o en sessionStorage (se borra al cerrar la pestaña) si no.
@@ -1238,7 +1276,7 @@
             script.id = 'googleMapsScript';
             script.async = true;
             script.defer = true;
-            script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&libraries=places&language=es&callback=initMap`;
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&libraries=places,marker&language=es&callback=initMap`;
             document.head.appendChild(script);
         }
 
@@ -1276,7 +1314,10 @@
                 zoomControl: true,
                 zoomControlOptions: {
                     position: google.maps.ControlPosition.RIGHT_TOP
-                }
+                },
+                // mapId es obligatorio para poder usar AdvancedMarkerElement (ver MAP_ID
+                // más abajo); si está vacío, Maps simplemente ignora la opción y no pasa nada.
+                mapId: MAP_ID || undefined
             });
             infoWindow = new google.maps.InfoWindow();
 
@@ -1293,19 +1334,7 @@
                 userPosition = cached;
                 map.setCenter(userPosition);
                 map.setZoom(14);
-                userLocationMarker = new google.maps.Marker({
-                    position: userPosition,
-                    map: map,
-                    title: "Tu ubicación actual",
-                    icon: {
-                        path: google.maps.SymbolPath.CIRCLE,
-                        scale: 8,
-                        fillColor: getGpsMarkerColor(),
-                        fillOpacity: 1,
-                        strokeColor: "#ffffff",
-                        strokeWeight: 2,
-                    }
-                });
+                userLocationMarker = createGpsMarker(userPosition, getGpsMarkerColor());
                 startNewSearch();
             } else if (useLocation && navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
@@ -1318,19 +1347,7 @@
                         map.setCenter(userPosition);
                         map.setZoom(14);
 
-                        userLocationMarker = new google.maps.Marker({
-                            position: userPosition,
-                            map: map,
-                            title: "Tu ubicación actual",
-                            icon: {
-                                path: google.maps.SymbolPath.CIRCLE,
-                                scale: 8,
-                                fillColor: getGpsMarkerColor(),
-                                fillOpacity: 1,
-                                strokeColor: "#ffffff",
-                                strokeWeight: 2,
-                            }
-                        });
+                        userLocationMarker = createGpsMarker(userPosition, getGpsMarkerColor());
                         startNewSearch();
                     },
                     (error) => {
@@ -1347,7 +1364,7 @@
             const enabled = document.getElementById('useLocationCheckbox').checked;
             localStorage.setItem(LS_USE_LOCATION, enabled ? 'true' : 'false');
             if (!enabled && userLocationMarker) {
-                userLocationMarker.setMap(null);
+                removeMarker(userLocationMarker);
                 userLocationMarker = null;
             } else if (enabled) {
                 centerOnUserLocation();
@@ -1364,23 +1381,8 @@
                         };
                         cachePosition(userPosition);
 
-                        if (userLocationMarker) {
-                            userLocationMarker.setMap(null);
-                        }
-
-                        userLocationMarker = new google.maps.Marker({
-                            position: userPosition,
-                            map: map,
-                            title: "Tu ubicación actual",
-                            icon: {
-                                path: google.maps.SymbolPath.CIRCLE,
-                                scale: 8,
-                                fillColor: getGpsMarkerColor(),
-                                fillOpacity: 1,
-                                strokeColor: "#ffffff",
-                                strokeWeight: 2,
-                            }
-                        });
+                        removeMarker(userLocationMarker);
+                        userLocationMarker = createGpsMarker(userPosition, getGpsMarkerColor());
 
                         map.setCenter(userPosition);
                         map.setZoom(15);
@@ -1900,11 +1902,7 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
             places.forEach(place => {
                 if (!place.location) return;
 
-                const marker = new google.maps.Marker({
-                    map: map,
-                    position: place.location,
-                    title: place.displayName
-                });
+                const marker = createPlaceMarker(place);
 
                 google.maps.event.addListener(marker, 'click', () => {
                     showPlaceDetail(place);
@@ -1923,7 +1921,7 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
         }
 
         function clearMarkers() {
-            googleMarkers.forEach(marker => marker.setMap(null));
+            googleMarkers.forEach(removeMarker);
             googleMarkers = [];
         }
 
