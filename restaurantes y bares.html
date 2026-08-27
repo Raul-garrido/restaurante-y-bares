@@ -1689,12 +1689,17 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
             filteredPlaces = [];
             currentPageIndex = 0;
 
+            // Se leen aquí fuera (no solo dentro del "if" de más abajo) porque también
+            // hacen falta para decidir includedType más abajo, incluso cuando la
+            // búsqueda viene de la IA (textQueryOverride) -- applyAiFilters() ya ha
+            // marcado estos mismos checkboxes antes de llamar aquí.
+            const selectedTypes = getCheckedValues('typeCheckboxes');
+            const selectedCuisines = getCheckedValues('cuisineCheckboxes');
+
             let textQuery = options.textQueryOverride;
             lastSearchWasDefault = !textQuery;
             if (!textQuery) {
                 const textInput = document.getElementById('searchInput').value.trim();
-                const selectedTypes = getCheckedValues('typeCheckboxes');
-                const selectedCuisines = getCheckedValues('cuisineCheckboxes');
                 lastSearchWasDefault = !textInput && selectedTypes.length === 0 && selectedCuisines.length === 0;
 
                 let queryParts = [];
@@ -1706,7 +1711,25 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
                 textQuery = queryParts.join(" ");
             }
 
-            const cacheKey = buildSearchCacheKey(textQuery, options.skipLocationBias);
+            // Google hace coincidir el texto contra el NOMBRE del negocio, no solo su
+            // categoría -- una búsqueda de solo texto como "Americana" (cocina) devolvía
+            // universidades, clínicas y tiendas con esa palabra en el nombre. Restringir
+            // por tipo de establecimiento (includedType + useStrictTypeFiltering) lo evita
+            // de raíz, pero Text Search de Google solo admite UN tipo por petición, así
+            // que esto solo se puede aplicar con certeza en dos casos: un único tipo
+            // marcado, o una cocina sin tipo marcado (toda cocina implica "restaurant").
+            // El listado genérico sin ningún filtro y el caso de varios tipos a la vez se
+            // quedan sin restringir, como antes.
+            let includedType = null;
+            if (selectedTypes.length === 1) {
+                includedType = selectedTypes[0]; // 'restaurant' | 'bar' | 'cafe' ya son tipos válidos de Google
+            } else if (selectedTypes.length === 0 && selectedCuisines.length > 0) {
+                includedType = 'restaurant';
+            }
+
+            // El includedType entra en la clave de caché: el mismo texto puede dar
+            // resultados distintos según se restrinja o no por tipo.
+            const cacheKey = buildSearchCacheKey(textQuery + '|type:' + (includedType || ''), options.skipLocationBias);
             const cached = options.bypassCache ? null : readSearchCache(cacheKey);
             if (cached) {
                 handlePlacesResponse(cached);
@@ -1725,6 +1748,10 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
                 fields: ['id', 'displayName', 'formattedAddress', 'location', 'rating', 'userRatingCount', 'priceLevel', 'photos', 'regularOpeningHours', 'businessStatus', 'primaryTypeDisplayName', 'websiteURI'],
                 maxResultCount: 20,
             };
+            if (includedType) {
+                request.includedType = includedType;
+                request.useStrictTypeFiltering = true;
+            }
             if (!options.skipLocationBias) {
                 request.locationBias = {
                     center: userPosition,
