@@ -174,11 +174,12 @@
             padding: 18px 20px 20px 20px; width: 90%; max-width: 420px; max-height: 85vh; overflow-y: auto;
         }
         .map-detail-close {
-            position: absolute; top: 10px; right: 10px; background: var(--gm-hover-bg);
-            border-radius: 50%; width: 28px; height: 28px;
+            position: absolute; top: 8px; right: 8px; background: var(--gm-hover-bg);
+            border-radius: 50%; width: 40px; height: 40px;
+            display: flex; align-items: center; justify-content: center;
         }
         .map-detail-photo { width: 100%; height: 180px; border-radius: 12px; background-size: cover; background-position: center; background-color: var(--gm-hover-bg); margin-bottom: 10px; }
-        .map-detail-title { font-family: 'Poppins', sans-serif; font-size: 1.2rem; font-weight: 600; margin-bottom: 6px; padding-right: 30px; }
+        .map-detail-title { font-family: 'Poppins', sans-serif; font-size: 1.2rem; font-weight: 600; margin-bottom: 6px; padding-right: 44px; }
         .map-detail-rating-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
         .map-detail-stars { font-size: 1rem; font-weight: 700; color: var(--gm-yellow); }
         .map-detail-review-count { font-size: 0.82rem; color: var(--gm-gray); }
@@ -498,7 +499,11 @@
            el círculo de --gm-hover-bg detrás de la X (poco contraste). --gm-dark es
            el color de texto principal (casi negro en claro, casi blanco en oscuro),
            así que la X queda siempre bien visible en los dos temas. */
-        .ai-collapse-btn { background: none; border: none; color: var(--gm-dark); font-size: 1.1rem; cursor: pointer; padding: 4px; }
+        /* padding a 10px (antes 4px) y letra más grande: en las que no tienen
+           circulo propio de fondo (panel IA, filtros) esto es lo que agranda la
+           zona táctil; en la de la ficha (.map-detail-close) el círculo ya se
+           agranda aparte, esto solo agranda el icono dentro. */
+        .ai-collapse-btn { background: none; border: none; color: var(--gm-dark); font-size: 1.3rem; cursor: pointer; padding: 10px; }
         .ai-panel-hint { font-size: 0.8rem; color: var(--gm-gray); margin-bottom: 12px; }
         .ai-input-row { display: flex; gap: 10px; align-items: flex-start; }
         .ai-input-row textarea {
@@ -1457,6 +1462,29 @@
             badge.style.display = activeCount > 0 ? 'flex' : 'none';
         }
 
+        // Pistas de orden dentro del propio texto escrito a mano (sin usar la IA):
+        // "cerca de mí"/"cerca" implica ordenar por cercanía, "barato(s)"/"económico"
+        // implica ordenar por precio ascendente, "caro(s)"/"de lujo" por precio
+        // descendente. Se probeban en orden -- la primera que encaje gana (no tiene
+        // sentido aplicar dos criterios de orden a la vez, solo hay un selector). Se
+        // quitan del texto que se manda a Google: no son nombres de sitio ni ayudan a
+        // encontrar nada, solo diluyen la búsqueda si se dejan.
+        const TEXT_SORT_HINTS = [
+            { sort: 'distance', pattern: /\b(cerca\s+de\s+m[ií]|cercan[ií]a|cercan[oa]s?|cerca)\b/gi },
+            { sort: 'price-asc', pattern: /\b(barat[oa]s?|econ[oó]mic[oa]s?)\b/gi },
+            { sort: 'price-desc', pattern: /\b(car[oa]s?|de\s+lujo|premium)\b/gi },
+        ];
+        function extractSortHintFromText(text) {
+            for (const hint of TEXT_SORT_HINTS) {
+                const match = text.match(hint.pattern);
+                if (match) {
+                    const cleaned = text.replace(hint.pattern, ' ').replace(/\s{2,}/g, ' ').trim();
+                    return { cleaned, sort: hint.sort };
+                }
+            }
+            return { cleaned: text, sort: null };
+        }
+
         function forceDataSync() {
             const btn = document.getElementById('syncBtn');
             btn.disabled = true;
@@ -1699,7 +1727,27 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
             let textQuery = options.textQueryOverride;
             lastSearchWasDefault = !textQuery;
             if (!textQuery) {
-                const textInput = document.getElementById('searchInput').value.trim();
+                let textInput = document.getElementById('searchInput').value.trim();
+
+                // Detecta pistas de orden en lo escrito a mano (ver extractSortHintFromText)
+                // y las quita del texto antes de mandarlo a Google. No pisa un orden que
+                // el usuario ya haya elegido explícitamente en el diálogo de Filtros.
+                if (textInput) {
+                    const hint = extractSortHintFromText(textInput);
+                    if (hint.sort) {
+                        textInput = hint.cleaned;
+                        document.getElementById('searchInput').value = textInput;
+                        const currentSort = document.querySelector('input[name="sortOption"]:checked')?.value || '';
+                        if (!currentSort) {
+                            const targetRadio = document.querySelector(`input[name="sortOption"][value="${hint.sort}"]`);
+                            if (targetRadio) {
+                                targetRadio.checked = true;
+                                updateFiltersBadge();
+                            }
+                        }
+                    }
+                }
+
                 lastSearchWasDefault = !textInput && selectedTypes.length === 0 && selectedCuisines.length === 0;
 
                 // El relleno "Restaurantes y bares recomendados" solo tiene sentido cuando
