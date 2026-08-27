@@ -684,6 +684,15 @@
 
             <div id="filtersContent">
             <div class="chip-group">
+                <span class="chip-group-label">Ordenar por</span>
+                <div class="chip-row" id="sortOptions">
+                    <label class="chip"><input type="radio" name="sortOption" value="" checked onchange="processAndRenderCurrentPage(); updateFiltersBadge();"><span>Relevancia</span></label>
+                    <label class="chip"><input type="radio" name="sortOption" value="distance" onchange="processAndRenderCurrentPage(); updateFiltersBadge();"><span>Más cerca</span></label>
+                    <label class="chip"><input type="radio" name="sortOption" value="name" onchange="processAndRenderCurrentPage(); updateFiltersBadge();"><span>Nombre (A-Z)</span></label>
+                </div>
+            </div>
+
+            <div class="chip-group">
                 <span class="chip-group-label">Cercanía</span>
                 <div class="chip-row" id="radiusOptions">
                     <label class="chip"><input type="radio" name="radiusOption" value="" checked onchange="handleRadiusChange(); updateFiltersBadge();"><span>Sin límite</span></label>
@@ -1439,7 +1448,8 @@
                 document.querySelectorAll('#cuisineCheckboxes input:checked').length +
                 document.querySelectorAll('#priceCheckboxes input:checked').length +
                 document.querySelectorAll('#ratingCheckboxes input:checked').length +
-                (document.querySelector('input[name="radiusOption"]:checked')?.value ? 1 : 0);
+                (document.querySelector('input[name="radiusOption"]:checked')?.value ? 1 : 0) +
+                (document.querySelector('input[name="sortOption"]:checked')?.value ? 1 : 0);
             const badge = document.getElementById('filtersBadge');
             badge.textContent = activeCount;
             badge.style.display = activeCount > 0 ? 'flex' : 'none';
@@ -1807,10 +1817,17 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
                 processed = processed.filter(p => p.rating && p.rating >= minRating);
             }
 
-            // Solo el listado por defecto se ordena por cercanía -- en cuanto hay una
-            // búsqueda de verdad (texto, chips o IA) se respeta el orden de relevancia
-            // que ya trae Google para esa consulta, en vez de forzar distancia.
-            if (lastSearchWasDefault) {
+            // "Ordenar por" del diálogo de filtros manda siempre que el usuario elija
+            // algo explícito. Si lo deja en "Relevancia" (valor por defecto, sin elegir),
+            // se mantiene el comportamiento de antes: el listado por defecto (sin
+            // texto/chips/IA) se ordena por cercanía, y una búsqueda de verdad respeta el
+            // orden de relevancia que ya trae Google para esa consulta.
+            const sortOption = document.querySelector('input[name="sortOption"]:checked')?.value || '';
+            if (sortOption === 'distance') {
+                processed.sort((a, b) => a.calculatedDistance - b.calculatedDistance);
+            } else if (sortOption === 'name') {
+                processed.sort((a, b) => a.displayName.localeCompare(b.displayName, 'es'));
+            } else if (lastSearchWasDefault) {
                 processed.sort((a, b) => a.calculatedDistance - b.calculatedDistance);
             }
 
