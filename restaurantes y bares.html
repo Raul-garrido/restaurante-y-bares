@@ -541,31 +541,10 @@
                 <button class="btn-theme-toggle" onclick="toggleTheme()" title="Cambiar tema claro/oscuro" id="themeToggleBtn">🌙</button>
             </div>
         </div>
-        <!-- Ilustración propia (no foto de terceros) de un plato con cubiertos, para que
-             se note a simple vista que es una app de restaurantes. Huecos a propósito para
-             que el mostaza de fondo siga asomando. -->
-        <div class="hero-illustration">
-            <svg viewBox="0 0 150 150" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="78" cy="82" r="44" fill="rgba(255,255,255,0.4)" stroke="#0F766E" stroke-width="3"/>
-                <circle cx="78" cy="82" r="30" fill="none" stroke="#0F766E" stroke-width="1.5" opacity="0.45"/>
-                <circle cx="66" cy="72" r="9" fill="#D64550"/>
-                <circle cx="90" cy="76" r="10" fill="#3A8F5B"/>
-                <circle cx="78" cy="96" r="8" fill="#E0A527"/>
-                <circle cx="72" cy="88" r="3" fill="#0F766E"/>
-                <circle cx="88" cy="92" r="3" fill="#0F766E"/>
-                <g fill="#0F766E">
-                    <rect x="10" y="100" width="7" height="42" rx="3.5"/>
-                    <rect x="6" y="60" width="4" height="30" rx="2"/>
-                    <rect x="12" y="58" width="4" height="32" rx="2"/>
-                    <rect x="18" y="60" width="4" height="30" rx="2"/>
-                    <path d="M6 88 Q6 100 13.5 100 Q21 100 21 88 Z"/>
-                </g>
-                <g fill="#0F766E">
-                    <rect x="128" y="100" width="7" height="42" rx="3.5"/>
-                    <path d="M124 60 Q145 65 135 100 L128 100 Z"/>
-                </g>
-            </svg>
-        </div>
+        <!-- Fondo de la cabecera: la foto (hero-food.jpg, puesta por CSS en
+             .hero-illustration). Antes llevaba encima un dibujo propio de plato con
+             cubiertos; se quitó porque con la foto ya basta. -->
+        <div class="hero-illustration"></div>
     </header>
 
     <div class="hero-search-wrap">
@@ -1370,6 +1349,7 @@
                 userPosition = cached;
                 map.setCenter(userPosition);
                 map.setZoom(14);
+                fitMapToLocality(userPosition);
                 userLocationMarker = createGpsMarker(userPosition, getGpsMarkerColor());
                 startNewSearch();
             } else if (useLocation && navigator.geolocation) {
@@ -1382,6 +1362,7 @@
                         cachePosition(userPosition);
                         map.setCenter(userPosition);
                         map.setZoom(14);
+                        fitMapToLocality(userPosition);
 
                         userLocationMarker = createGpsMarker(userPosition, getGpsMarkerColor());
                         startNewSearch();
@@ -1394,6 +1375,31 @@
             } else {
                 startNewSearch();
             }
+        }
+
+        // Ajusta el mapa a los límites aproximados de la localidad del usuario, en vez
+        // de un zoom fijo que no vale igual para un pueblo pequeño que para una ciudad
+        // grande -- usa el geocoder inverso de Google para encontrar el resultado de
+        // tipo "locality" (o "administrative_area_level_3" como respaldo, hay
+        // municipios que no salen como locality) más cercano a la posición, y sus
+        // límites reales (geometry.viewport). Si falla o no hay resultado, el mapa se
+        // queda con el zoom fijo que ya se había puesto justo antes de llamar aquí.
+        function fitMapToLocality(position) {
+            if (!window.google || !google.maps.Geocoder) return;
+            const geocoder = new google.maps.Geocoder();
+            geocoder.geocode({ location: position }, (results, status) => {
+                if (status !== 'OK' || !results || results.length === 0) return;
+                const localityResult = results.find(r => r.types.includes('locality'))
+                    || results.find(r => r.types.includes('administrative_area_level_3'));
+                if (!localityResult || !localityResult.geometry || !localityResult.geometry.viewport) return;
+                map.fitBounds(localityResult.geometry.viewport);
+                // Amortigua los extremos (una ciudad enorme dejaría un zoom demasiado
+                // alejado para servir de algo; un municipio minúsculo, demasiado cerca).
+                google.maps.event.addListenerOnce(map, 'bounds_changed', () => {
+                    if (map.getZoom() > 16) map.setZoom(16);
+                    if (map.getZoom() < 11) map.setZoom(11);
+                });
+            });
         }
 
         function onUseLocationToggle() {
@@ -1422,7 +1428,8 @@
 
                         map.setCenter(userPosition);
                         map.setZoom(15);
-                        startNewSearch(); 
+                        fitMapToLocality(userPosition);
+                        startNewSearch();
                     },
                     (error) => {
                         alert("No se pudo obtener tu ubicación. Comprueba los permisos en tu navegador.");
