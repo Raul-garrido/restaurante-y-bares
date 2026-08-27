@@ -494,7 +494,11 @@
         .ai-expanded { display: none; }
         .ai-panel.expanded .ai-expanded { display: block; }
         .ai-panel-title { font-size: 1.05rem; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-        .ai-collapse-btn { background: none; border: none; color: var(--gm-gray); font-size: 1.1rem; cursor: pointer; padding: 4px; }
+        /* Antes usaba --gm-gray, que se hunde contra el fondo claro de las fichas y
+           el círculo de --gm-hover-bg detrás de la X (poco contraste). --gm-dark es
+           el color de texto principal (casi negro en claro, casi blanco en oscuro),
+           así que la X queda siempre bien visible en los dos temas. */
+        .ai-collapse-btn { background: none; border: none; color: var(--gm-dark); font-size: 1.1rem; cursor: pointer; padding: 4px; }
         .ai-panel-hint { font-size: 0.8rem; color: var(--gm-gray); margin-bottom: 12px; }
         .ai-input-row { display: flex; gap: 10px; align-items: flex-start; }
         .ai-input-row textarea {
@@ -972,13 +976,28 @@
 
         // Convierte un Place "vivo" (con getters del prototipo y un Photo con getURI) en un
         // objeto plano y serializable, resolviendo la foto a una URL fija de una vez.
-        function toPlainPlace(place) {
+        async function toPlainPlace(place) {
             const loc = place.location;
             const lat = typeof loc.lat === 'function' ? loc.lat() : loc.lat;
             const lng = typeof loc.lng === 'function' ? loc.lng() : loc.lng;
             let photoUrl = null;
             if (place.photos && place.photos.length > 0) {
                 photoUrl = place.photos[0].getURI({ maxWidth: 500, maxHeight: 400 });
+            }
+            // OJO: a diferencia de la API REST, el SDK de JS NO expone un campo
+            // "openNow" plano dentro de regularOpeningHours -- hay que preguntarlo con
+            // el método async isOpen(), que lo calcula a partir de los periods que ya
+            // hemos pedido (no hace una petición nueva ni cuesta más). Antes se leía
+            // `regularOpeningHours.openNow`, que siempre era undefined -> `!!undefined`
+            // -> false -> "cerrado" para casi todos los locales.
+            let openNow = null;
+            if (place.regularOpeningHours) {
+                try {
+                    const result = await place.isOpen();
+                    openNow = result === undefined ? null : result;
+                } catch (e) {
+                    openNow = null;
+                }
             }
             return {
                 id: place.id,
@@ -993,7 +1012,7 @@
                 // OJO: a diferencia de la API REST (donde es {text, languageCode}), en el
                 // SDK de JS primaryTypeDisplayName ya viene como string plano.
                 specialtyType: place.primaryTypeDisplayName || null,
-                openNow: place.regularOpeningHours ? !!place.regularOpeningHours.openNow : null,
+                openNow,
                 weekdayDescriptions: place.regularOpeningHours && place.regularOpeningHours.weekdayDescriptions
                     ? place.regularOpeningHours.weekdayDescriptions.slice()
                     : null,
@@ -1138,6 +1157,7 @@
                     <div class="swipe-card-body">
                         <div class="swipe-card-title">${escapeHtml(place.displayName)}</div>
                         ${place.specialtyType ? `<span class="gm-specialty">${escapeHtml(place.specialtyType)}</span>` : ''}
+                        ${getStatusBadgeHtml(place)}
                         <div class="gm-rating">${totalReviews}${priceStr}</div>
                         <div class="swipe-card-address">${escapeHtml(place.formattedAddress)}</div>
                     </div>
@@ -1707,7 +1727,7 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
 
             try {
                 const { places } = await google.maps.places.Place.searchByText(request);
-                const plainPlaces = places.map(toPlainPlace);
+                const plainPlaces = await Promise.all(places.map(toPlainPlace));
                 writeSearchCache(cacheKey, plainPlaces);
                 handlePlacesResponse(plainPlaces);
             } catch (error) {
@@ -1872,6 +1892,7 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
                     <div class="venue-body">
                         <h3 class="gm-title">${escapeHtml(place.displayName)}</h3>
                         ${place.specialtyType ? `<span class="gm-specialty">${escapeHtml(place.specialtyType)}</span>` : ''}
+                        ${getStatusBadgeHtml(place)}
                         <div class="gm-rating">${totalReviews}${priceStr}</div>
                         <div class="gm-address">
                             <span>📍 ${escapeHtml(place.formattedAddress)}</span>
@@ -1960,6 +1981,22 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
             return { open: true, closingSoonText: null };
         }
 
+        // Pill de abierto/cerrado, compartida entre la ficha de detalle y las
+        // tarjetas (rejilla y "Descubrir") -- así se ve sin tener que abrir la ficha.
+        function getStatusBadgeHtml(place) {
+            if (place.businessStatus === 'CLOSED_PERMANENTLY') {
+                return `<span class="map-detail-status is-closed">Cerrado permanentemente</span>`;
+            }
+            if (place.businessStatus === 'CLOSED_TEMPORARILY') {
+                return `<span class="map-detail-status is-closed">Cerrado temporalmente</span>`;
+            }
+            const status = getOpenStatus(place);
+            if (!status) return '';
+            return status.open
+                ? `<span class="map-detail-status is-open">${status.closingSoonText || 'Abierto ahora'}</span>`
+                : `<span class="map-detail-status is-closed">Cerrado ahora</span>`;
+        }
+
         function showPlaceDetail(place) {
             const photoUrl = getPlacePhotoUrl(place, 500, 320);
             const photoHtml = photoUrl
@@ -1976,19 +2013,7 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
                    </div>`
                 : `<div class="map-detail-rating-row"><span class="map-detail-review-count">Sin valoración todavía</span></div>`;
 
-            let statusHtml = '';
-            if (place.businessStatus === 'CLOSED_PERMANENTLY') {
-                statusHtml = `<span class="map-detail-status is-closed">Cerrado permanentemente</span>`;
-            } else if (place.businessStatus === 'CLOSED_TEMPORARILY') {
-                statusHtml = `<span class="map-detail-status is-closed">Cerrado temporalmente</span>`;
-            } else {
-                const status = getOpenStatus(place);
-                if (status) {
-                    statusHtml = status.open
-                        ? `<span class="map-detail-status is-open">${status.closingSoonText || 'Abierto ahora'}</span>`
-                        : `<span class="map-detail-status is-closed">Cerrado ahora</span>`;
-                }
-            }
+            const statusHtml = getStatusBadgeHtml(place);
 
             let hoursHtml = '';
             if (Array.isArray(place.weekdayDescriptions) && place.weekdayDescriptions.length > 0) {
