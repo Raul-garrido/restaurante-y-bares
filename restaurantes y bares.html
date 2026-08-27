@@ -1702,10 +1702,16 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
                 const textInput = document.getElementById('searchInput').value.trim();
                 lastSearchWasDefault = !textInput && selectedTypes.length === 0 && selectedCuisines.length === 0;
 
+                // El relleno "Restaurantes y bares recomendados" solo tiene sentido cuando
+                // no hay NADA más que darle a Google -- antes se añadía en cuanto no había
+                // chips de tipo marcados, aunque hubiera texto escrito a mano, diluyendo la
+                // búsqueda real (ej. "hamburguesa" acababa mandándose como "Restaurantes y
+                // bares recomendados hamburguesa", empeorando la relevancia de Google y
+                // dejando fuera del top 20 un resultado que sí encajaba).
                 let queryParts = [];
                 if (selectedCuisines.length > 0) queryParts.push(selectedCuisines.join(" o "));
                 if (selectedTypes.length > 0) queryParts.push(selectedTypes.join(" "));
-                else if (queryParts.length === 0) queryParts.push("Restaurantes y bares recomendados");
+                if (queryParts.length === 0 && !textInput) queryParts.push("Restaurantes y bares recomendados");
 
                 if (textInput) queryParts.push(textInput);
                 textQuery = queryParts.join(" ");
