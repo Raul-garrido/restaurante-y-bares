@@ -1,0 +1,17 @@
+{
+  "name": "Busca dónde comer",
+  "short_name": "Busca dónde comer",
+  "description": "Directorio de restaurantes y bares con geolocalización, filtros y búsqueda por IA.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#E3F1EE",
+  "theme_color": "#0F766E",
+  "orientation": "any",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
