@@ -95,7 +95,12 @@
            flotando encima del borde inferior — nada de todo apilado en cajas iguales. */
         .hero {
             background: linear-gradient(135deg, var(--gm-hero-start) 0%, var(--gm-hero-end) 100%);
-            padding: 26px 20px 70px 20px; position: relative; color: var(--gm-hero-text); overflow: hidden;
+            /* env(safe-area-inset-top) es 0 en un navegador normal, pero en la PWA
+               instalada (viewport-fit=cover deja dibujar bajo la barra de estado /
+               notch) evita que el título y los botones queden pegados ahí arriba,
+               donde un toque se puede colar hacia los controles del sistema. */
+            padding: calc(26px + env(safe-area-inset-top)) 20px 70px 20px;
+            position: relative; color: var(--gm-hero-text); overflow: hidden;
         }
         /* Velo oscuro en diagonal sobre la foto para que el título y los botones se
            lean bien encima de cualquier zona de la imagen, sin taparla del todo. */
@@ -675,7 +680,7 @@
             <section class="search-row-panel">
                 <div class="search-box">
                     <input type="text" id="searchInput" placeholder="Buscar por nombre o calle...">
-                    <button class="btn-icon-action" onclick="startNewSearch()" title="Buscar">🔍</button>
+                    <button class="btn-icon-action" onclick="runManualSearch()" title="Buscar">🔍</button>
                     <button class="btn-icon-action" id="filtersTriggerBtn" onclick="openFiltersDialog()" title="Filtros">
                         🔧<span class="filters-badge" id="filtersBadge" style="display:none;">0</span>
                     </button>
@@ -1462,27 +1467,64 @@
             badge.style.display = activeCount > 0 ? 'flex' : 'none';
         }
 
-        // Pistas de orden dentro del propio texto escrito a mano (sin usar la IA):
-        // "cerca de mí"/"cerca" implica ordenar por cercanía, "barato(s)"/"económico"
-        // implica ordenar por precio ascendente, "caro(s)"/"de lujo" por precio
-        // descendente. Se probeban en orden -- la primera que encaje gana (no tiene
-        // sentido aplicar dos criterios de orden a la vez, solo hay un selector). Se
-        // quitan del texto que se manda a Google: no son nombres de sitio ni ayudan a
-        // encontrar nada, solo diluyen la búsqueda si se dejan.
+        // Pistas dentro del propio texto escrito a mano (sin usar la IA): de orden
+        // ("cerca de mí"/"cerca" -> cercanía, "barato(s)"/"económico" -> precio
+        // ascendente, "caro(s)"/"de lujo" -> precio descendente -- la primera que
+        // encaje gana, solo hay un selector de orden) y de valoración mínima
+        // ("mejor valorado"/"bien valorado" -> filtro de 4.0+ estrellas). Todo se
+        // quita del texto que se manda a Google: no son nombres de sitio ni ayudan
+        // a encontrar nada, solo diluyen la búsqueda si se dejan.
         const TEXT_SORT_HINTS = [
             { sort: 'distance', pattern: /\b(cerca\s+de\s+m[ií]|cercan[ií]a|cercan[oa]s?|cerca)\b/gi },
             { sort: 'price-asc', pattern: /\b(barat[oa]s?|econ[oó]mic[oa]s?)\b/gi },
             { sort: 'price-desc', pattern: /\b(car[oa]s?|de\s+lujo|premium)\b/gi },
         ];
-        function extractSortHintFromText(text) {
+        const TEXT_RATING_HINT = /\b(mejor(es)?\s+valorad[oa]s?|bien\s+valorad[oa]s?|mejor(es)?\s+puntuad[oa]s?|top\s+valorad[oa]s?)\b/gi;
+        function extractSearchHintsFromText(text) {
+            let cleaned = text;
+            let sort = null;
             for (const hint of TEXT_SORT_HINTS) {
-                const match = text.match(hint.pattern);
-                if (match) {
-                    const cleaned = text.replace(hint.pattern, ' ').replace(/\s{2,}/g, ' ').trim();
-                    return { cleaned, sort: hint.sort };
+                if (hint.pattern.test(cleaned)) {
+                    sort = hint.sort;
+                    cleaned = cleaned.replace(hint.pattern, ' ');
+                    break;
                 }
+                hint.pattern.lastIndex = 0;
             }
-            return { cleaned: text, sort: null };
+            let minRating = null;
+            if (TEXT_RATING_HINT.test(cleaned)) {
+                minRating = '4.0';
+                cleaned = cleaned.replace(TEXT_RATING_HINT, ' ');
+            }
+            TEXT_RATING_HINT.lastIndex = 0;
+            cleaned = cleaned.replace(/\s{2,}/g, ' ').trim();
+            return { cleaned, sort, minRating };
+        }
+
+        // Limpia todos los filtros de la búsqueda anterior (tipo, cocina, precio,
+        // valoración, radio, orden) -- se llama al lanzar una búsqueda de texto
+        // nueva de verdad (botón lupa, Enter, o una petición de IA), para que no se
+        // queden "pegados" filtros de una petición anterior que no tiene nada que
+        // ver. Los que apliquen a la nueva petición se vuelven a marcar solos justo
+        // después (extractSearchHintsFromText aquí, applyAiFilters en la IA).
+        function resetSearchFilters() {
+            document.querySelectorAll(
+                '#typeCheckboxes input:checked, #cuisineCheckboxes input:checked, #priceCheckboxes input:checked, #ratingCheckboxes input:checked'
+            ).forEach(cb => cb.checked = false);
+            const noLimitRadio = document.querySelector('input[name="radiusOption"][value=""]');
+            if (noLimitRadio) noLimitRadio.checked = true;
+            const relevanceRadio = document.querySelector('input[name="sortOption"][value=""]');
+            if (relevanceRadio) relevanceRadio.checked = true;
+            updateFiltersBadge();
+        }
+
+        // Disparador del botón de lupa y de pulsar Enter en la caja de texto --
+        // distinto de startNewSearch() a secas, que también se usa cuando se toca
+        // un chip de filtro (ahí NO hay que resetear nada, se está afinando la
+        // búsqueda actual, no empezando una nueva).
+        function runManualSearch() {
+            resetSearchFilters();
+            startNewSearch();
         }
 
         function forceDataSync() {
@@ -1628,6 +1670,10 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
                     return;
                 }
 
+                // Limpia primero lo que quedara de una búsqueda anterior sin relación con
+                // esta (radio, orden) -- applyAiFilters() ya se encarga de tipo/cocina/
+                // precio/valoración marcando exactamente lo que la IA ha entendido.
+                resetSearchFilters();
                 applyAiFilters(parsed);
                 const skipLocationBias = parsed.useCurrentLocation === false;
                 if (skipLocationBias) {
@@ -1729,22 +1775,27 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
             if (!textQuery) {
                 let textInput = document.getElementById('searchInput').value.trim();
 
-                // Detecta pistas de orden en lo escrito a mano (ver extractSortHintFromText)
-                // y las quita del texto antes de mandarlo a Google. No pisa un orden que
-                // el usuario ya haya elegido explícitamente en el diálogo de Filtros.
+                // Detecta pistas en lo escrito a mano (ver extractSearchHintsFromText) y
+                // las quita del texto antes de mandarlo a Google. El orden no pisa uno que
+                // el usuario ya haya elegido a mano en Filtros; la valoración mínima sí se
+                // marca siempre que se detecte (no hay ambigüedad posible con eso).
                 if (textInput) {
-                    const hint = extractSortHintFromText(textInput);
-                    if (hint.sort) {
-                        textInput = hint.cleaned;
+                    const hints = extractSearchHintsFromText(textInput);
+                    if (hints.sort || hints.minRating) {
+                        textInput = hints.cleaned;
                         document.getElementById('searchInput').value = textInput;
-                        const currentSort = document.querySelector('input[name="sortOption"]:checked')?.value || '';
-                        if (!currentSort) {
-                            const targetRadio = document.querySelector(`input[name="sortOption"][value="${hint.sort}"]`);
-                            if (targetRadio) {
-                                targetRadio.checked = true;
-                                updateFiltersBadge();
+                        if (hints.sort) {
+                            const currentSort = document.querySelector('input[name="sortOption"]:checked')?.value || '';
+                            if (!currentSort) {
+                                const targetRadio = document.querySelector(`input[name="sortOption"][value="${hints.sort}"]`);
+                                if (targetRadio) targetRadio.checked = true;
                             }
                         }
+                        if (hints.minRating) {
+                            const targetCheckbox = document.querySelector(`#ratingCheckboxes input[value="${hints.minRating}"]`);
+                            if (targetCheckbox) targetCheckbox.checked = true;
+                        }
+                        updateFiltersBadge();
                     }
                 }
 
@@ -1803,6 +1854,13 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
                 // al ir ya en una petición Enterprise tampoco añade coste extra.
                 fields: ['id', 'displayName', 'formattedAddress', 'location', 'rating', 'userRatingCount', 'priceLevel', 'photos', 'regularOpeningHours', 'businessStatus', 'primaryTypeDisplayName', 'websiteURI'],
                 maxResultCount: 20,
+                // Sesga (no restringe de forma estricta) hacia España -- sin esto, una
+                // búsqueda de solo texto sin locationBias (GPS desactivado, o la IA
+                // buscando en otra localidad) podía traer sitios de cualquier país de
+                // habla hispana (p.ej. una universidad en Asunción, Paraguay, para
+                // "Americana"). Al ser un sesgo y no una restricción dura, una petición
+                // que sí pida explícitamente otro país debería poder seguir encontrándolo.
+                region: 'es',
             };
             if (includedType) {
                 request.includedType = includedType;
@@ -2251,7 +2309,7 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
         });
 
         document.getElementById('searchInput').addEventListener('keypress', function (e) {
-            if (e.key === 'Enter') startNewSearch();
+            if (e.key === 'Enter') runManualSearch();
         });
 
         // Arranque: si ya hay una clave de Maps guardada, cargamos el mapa directamente;
