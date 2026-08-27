@@ -689,6 +689,8 @@
                     <label class="chip"><input type="radio" name="sortOption" value="" checked onchange="processAndRenderCurrentPage(); updateFiltersBadge();"><span>Relevancia</span></label>
                     <label class="chip"><input type="radio" name="sortOption" value="distance" onchange="processAndRenderCurrentPage(); updateFiltersBadge();"><span>Más cerca</span></label>
                     <label class="chip"><input type="radio" name="sortOption" value="name" onchange="processAndRenderCurrentPage(); updateFiltersBadge();"><span>Nombre (A-Z)</span></label>
+                    <label class="chip"><input type="radio" name="sortOption" value="price-asc" onchange="processAndRenderCurrentPage(); updateFiltersBadge();"><span>Precio: menor a mayor</span></label>
+                    <label class="chip"><input type="radio" name="sortOption" value="price-desc" onchange="processAndRenderCurrentPage(); updateFiltersBadge();"><span>Precio: mayor a menor</span></label>
                 </div>
             </div>
 
@@ -1827,6 +1829,19 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
                 processed.sort((a, b) => a.calculatedDistance - b.calculatedDistance);
             } else if (sortOption === 'name') {
                 processed.sort((a, b) => a.displayName.localeCompare(b.displayName, 'es'));
+            } else if (sortOption === 'price-asc' || sortOption === 'price-desc') {
+                // Los locales sin dato de precio se dejan siempre al final, en las dos
+                // direcciones (si no, "menor a mayor" los pondría los primeros, como si
+                // fueran gratis, que es engañoso).
+                const direction = sortOption === 'price-asc' ? 1 : -1;
+                processed.sort((a, b) => {
+                    const pa = priceLevelToNumber(a.priceLevel);
+                    const pb = priceLevelToNumber(b.priceLevel);
+                    if (pa === null && pb === null) return 0;
+                    if (pa === null) return 1;
+                    if (pb === null) return -1;
+                    return direction * (pa - pb);
+                });
             } else if (lastSearchWasDefault) {
                 processed.sort((a, b) => a.calculatedDistance - b.calculatedDistance);
             }
