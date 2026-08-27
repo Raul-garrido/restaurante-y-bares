@@ -1718,12 +1718,14 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
             // de raíz, pero Text Search de Google solo admite UN tipo por petición, así
             // que esto solo se puede aplicar con certeza en dos casos: un único tipo
             // marcado, o una cocina sin tipo marcado (toda cocina implica "restaurant").
-            // El listado genérico sin ningún filtro y el caso de varios tipos a la vez se
-            // quedan sin restringir, como antes.
+            // El listado genérico sin ningún filtro por defecto a "restaurant" también
+            // (misma petición, mismo coste de antes -- solo se deja sin restringir el
+            // caso de varios tipos marcados a la vez, porque ahí sí habría que elegir
+            // uno de forma arbitraria).
             let includedType = null;
             if (selectedTypes.length === 1) {
                 includedType = selectedTypes[0]; // 'restaurant' | 'bar' | 'cafe' ya son tipos válidos de Google
-            } else if (selectedTypes.length === 0 && selectedCuisines.length > 0) {
+            } else if (selectedTypes.length === 0) {
                 includedType = 'restaurant';
             }
 
