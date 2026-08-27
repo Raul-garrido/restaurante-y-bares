@@ -976,28 +976,13 @@
 
         // Convierte un Place "vivo" (con getters del prototipo y un Photo con getURI) en un
         // objeto plano y serializable, resolviendo la foto a una URL fija de una vez.
-        async function toPlainPlace(place) {
+        function toPlainPlace(place) {
             const loc = place.location;
             const lat = typeof loc.lat === 'function' ? loc.lat() : loc.lat;
             const lng = typeof loc.lng === 'function' ? loc.lng() : loc.lng;
             let photoUrl = null;
             if (place.photos && place.photos.length > 0) {
                 photoUrl = place.photos[0].getURI({ maxWidth: 500, maxHeight: 400 });
-            }
-            // OJO: a diferencia de la API REST, el SDK de JS NO expone un campo
-            // "openNow" plano dentro de regularOpeningHours -- hay que preguntarlo con
-            // el método async isOpen(), que lo calcula a partir de los periods que ya
-            // hemos pedido (no hace una petición nueva ni cuesta más). Antes se leía
-            // `regularOpeningHours.openNow`, que siempre era undefined -> `!!undefined`
-            // -> false -> "cerrado" para casi todos los locales.
-            let openNow = null;
-            if (place.regularOpeningHours) {
-                try {
-                    const result = await place.isOpen();
-                    openNow = result === undefined ? null : result;
-                } catch (e) {
-                    openNow = null;
-                }
             }
             return {
                 id: place.id,
@@ -1012,7 +997,10 @@
                 // OJO: a diferencia de la API REST (donde es {text, languageCode}), en el
                 // SDK de JS primaryTypeDisplayName ya viene como string plano.
                 specialtyType: place.primaryTypeDisplayName || null,
-                openNow,
+                // No hay campo "menú" en Places API (New) -- Google tampoco lo tiene, en
+                // su propia ficha de Maps la pestaña "Carta" cae al sitio web cuando no
+                // hay menú propio, así que hacemos lo mismo con websiteUri.
+                websiteUri: place.websiteUri || null,
                 weekdayDescriptions: place.regularOpeningHours && place.regularOpeningHours.weekdayDescriptions
                     ? place.regularOpeningHours.weekdayDescriptions.slice()
                     : null,
@@ -1715,7 +1703,7 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
                 // de nivel de precio, así que añadirlos no cuesta más por petición.
                 // primaryTypeDisplayName es nivel "Pro" (más barato que Enterprise), así que
                 // al ir ya en una petición Enterprise tampoco añade coste extra.
-                fields: ['id', 'displayName', 'formattedAddress', 'location', 'rating', 'userRatingCount', 'priceLevel', 'photos', 'regularOpeningHours', 'businessStatus', 'primaryTypeDisplayName'],
+                fields: ['id', 'displayName', 'formattedAddress', 'location', 'rating', 'userRatingCount', 'priceLevel', 'photos', 'regularOpeningHours', 'businessStatus', 'primaryTypeDisplayName', 'websiteUri'],
                 maxResultCount: 20,
             };
             if (!options.skipLocationBias) {
@@ -1727,7 +1715,7 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
 
             try {
                 const { places } = await google.maps.places.Place.searchByText(request);
-                const plainPlaces = await Promise.all(places.map(toPlainPlace));
+                const plainPlaces = places.map(toPlainPlace);
                 writeSearchCache(cacheKey, plainPlaces);
                 handlePlacesResponse(plainPlaces);
             } catch (error) {
@@ -1885,7 +1873,13 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
                 const priceStr = priceLevelNum ? ' · ' + '€'.repeat(priceLevelNum) : '';
 
                 const mapUrl = `https://www.google.com/maps/place/?q=place_id:${encodeURIComponent(place.id)}`;
-                const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination_place_id=${encodeURIComponent(place.id)}`;
+                // "destination_place_id" solo sirve para desambiguar y requiere venir
+                // acompañado de "destination" (si no, Google Maps lo ignora y pide
+                // rellenar origen y destino a mano). "origin" se deja sin especificar a
+                // propósito: así Maps usa automáticamente la ubicación actual del
+                // dispositivo si el usuario le da permiso, sin que tengamos que pedirlo
+                // nosotros dos veces.
+                const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(place.formattedAddress)}&destination_place_id=${encodeURIComponent(place.id)}`;
 
                 card.innerHTML = `
                     ${photoHtml}
@@ -1954,31 +1948,47 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
         // tarjeta de la rejilla, pero flotando sobre el propio mapa (funciona igual en
         // el mapa normal que en el de pantalla completa).
         // Calcula si está abierto ahora mismo y, si cierra dentro de la próxima hora,
-        // a qué hora exactamente -- a partir de "periods" (no es un dato que de Google
-        // venga ya calculado como "cierra pronto", hay que mirarlo nosotros).
+        // a qué hora exactamente -- todo a partir de "periods" (hora local del propio
+        // local, day 0=domingo..6=sábado). Se calcula aquí en vez de usar el método
+        // Place.isOpen() del SDK: la documentación de Google lo marca como "Beta" (solo
+        // disponible cargando el canal beta de la Maps JS API, que esta app no usa) y en
+        // pruebas reales daba estados incorrectos -- en concreto con locales que cierran
+        // pasada la medianoche (p.ej. cierre a las 0:00), que es justo el caso que hay que
+        // tratar con cuidado aquí: el periodo de cierre cae en el día siguiente.
         function getOpenStatus(place) {
-            if (place.openNow === null || place.openNow === undefined) return null;
-            if (!place.openNow) return { open: false, closingSoonText: null };
+            const periods = place.periods;
+            if (!Array.isArray(periods) || periods.length === 0) return null;
 
-            if (Array.isArray(place.periods)) {
-                const now = new Date();
-                const today = now.getDay();
-                const nowMinutes = now.getHours() * 60 + now.getMinutes();
-                for (const p of place.periods) {
-                    if (!p.open || !p.close || p.open.day !== today) continue;
-                    if (p.close.day !== today) continue; // cierra otro dia (pasa medianoche): no calculamos "cierra pronto" para ese caso
-                    const closeMinutes = p.close.hour * 60 + p.close.minute;
-                    if (closeMinutes <= nowMinutes) continue;
-                    const diff = closeMinutes - nowMinutes;
-                    if (diff <= 60) {
-                        const hh = String(p.close.hour).padStart(2, '0');
-                        const mm = String(p.close.minute).padStart(2, '0');
-                        return { open: true, closingSoonText: `Cierra pronto, a las ${hh}:${mm}` };
-                    }
-                    break;
+            // Un periodo con apertura pero sin cierre es como Google marca "abierto 24h".
+            if (periods.some(p => p.open && !p.close)) return { open: true, closingSoonText: null };
+
+            const now = new Date();
+            const nowTotal = now.getDay() * 1440 + now.getHours() * 60 + now.getMinutes();
+            const WEEK = 7 * 1440;
+
+            for (const p of periods) {
+                if (!p.open || !p.close) continue;
+                const openTotal = p.open.day * 1440 + p.open.hour * 60 + p.open.minute;
+                let closeTotal = p.close.day * 1440 + p.close.hour * 60 + p.close.minute;
+                if (closeTotal <= openTotal) closeTotal += WEEK; // cierra pasada la medianoche
+
+                // La semana es cíclica (un periodo puede empezar el sábado noche y el
+                // "ahora" caer ya en domingo de madrugada): se prueba tal cual y desplazado
+                // una semana para cubrir ese caso también.
+                const directMatch = nowTotal >= openTotal && nowTotal < closeTotal;
+                const wrappedMatch = (nowTotal + WEEK) >= openTotal && (nowTotal + WEEK) < closeTotal;
+                if (!directMatch && !wrappedMatch) continue;
+
+                const realCloseTotal = directMatch ? closeTotal : closeTotal - WEEK;
+                const minutesToClose = realCloseTotal - nowTotal;
+                if (minutesToClose <= 60) {
+                    const hh = String(p.close.hour).padStart(2, '0');
+                    const mm = String(p.close.minute).padStart(2, '0');
+                    return { open: true, closingSoonText: `Cierra pronto, a las ${hh}:${mm}` };
                 }
+                return { open: true, closingSoonText: null };
             }
-            return { open: true, closingSoonText: null };
+            return { open: false, closingSoonText: null };
         }
 
         // Pill de abierto/cerrado, compartida entre la ficha de detalle y las
@@ -2027,7 +2037,10 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
             }
 
             const mapUrl = `https://www.google.com/maps/place/?q=place_id:${encodeURIComponent(place.id)}`;
-            const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination_place_id=${encodeURIComponent(place.id)}`;
+            const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(place.formattedAddress)}&destination_place_id=${encodeURIComponent(place.id)}`;
+            const menuHtml = place.websiteUri
+                ? `<a href="${escapeHtml(place.websiteUri)}" target="_blank" class="gm-btn btn-outline">Carta / Web</a>`
+                : '';
 
             document.getElementById('mapDetailCardContent').innerHTML = `
                 ${photoHtml}
@@ -2040,6 +2053,7 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
                 <div class="map-detail-actions">
                     <a href="${directionsUrl}" target="_blank" class="gm-btn btn-directions">Cómo llegar</a>
                     <a href="${mapUrl}" target="_blank" class="gm-btn btn-outline">Ver reseñas en Google</a>
+                    ${menuHtml}
                 </div>
             `;
             document.getElementById('mapDetailBackdrop').style.display = 'block';
