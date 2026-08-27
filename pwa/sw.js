@@ -1,4 +1,4 @@
-const CACHE_NAME = "rb-pwa-v1";
+const CACHE_NAME = "rb-pwa-v2";
 const PRECACHE_URLS = [
   "./index.html",
   "./manifest.json",
@@ -40,7 +40,12 @@ self.addEventListener("fetch", (event) => {
   if (req.method !== "GET" || new URL(req.url).origin !== self.location.origin) return;
 
   event.respondWith(
-    fetch(req)
+    // cache: 'no-store' es imprescindible aquí -- GitHub Pages sirve con
+    // Cache-Control: max-age=600, y sin esto un fetch() normal se conformaba
+    // con la respuesta de la caché HTTP del navegador dentro de esos 10
+    // minutos, sirviendo una versión vieja aunque "red primero" fuera la
+    // intención. Con no-store se fuerza a ir siempre de verdad a la red.
+    fetch(req, { cache: "no-store" })
       .then((res) => {
         const copy = res.clone();
         caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
