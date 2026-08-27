@@ -109,9 +109,10 @@
             background: linear-gradient(115deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.22) 45%, rgba(0,0,0,0.08) 75%);
         }
         .hero-top { max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; position: relative; z-index: 2; }
-        /* Color muestreado del fondo del icono nuevo de la app (el de la mano con la
-           cerveza), para que el nombre "Gocheando" case con el icono en el móvil. */
-        .hero-titles h1 { font-family: 'Poppins', sans-serif; font-size: 1.9rem; font-weight: 700; margin-bottom: 4px; color: #3699A1; text-shadow: 0 1px 6px rgba(0,0,0,0.4); }
+        /* --gm-blue: el mismo teal del botón "Cómo llegar" (y del resto de acentos
+           de la app) -- se ve mejor que el muestreado directo del icono, y al ser
+           la variable ya existente sigue el tema claro/oscuro sin nada más. */
+        .hero-titles h1 { font-family: 'Poppins', sans-serif; font-size: 1.9rem; font-weight: 700; margin-bottom: 4px; color: var(--gm-blue); text-shadow: 0 1px 6px rgba(0,0,0,0.4); }
         .hero-titles p { color: var(--gm-hero-text); opacity: 0.92; font-size: 0.95rem; text-shadow: 0 1px 4px rgba(0,0,0,0.4); }
         .header-corner-actions { position: static; display: flex; gap: 8px; flex-shrink: 0; }
         .btn-settings, .btn-theme-toggle {
