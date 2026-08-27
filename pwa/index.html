@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <title>Busca dónde comer</title>
+    <title>Gocheando</title>
 
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0F766E">
@@ -12,7 +12,7 @@
     <!-- iOS/Safari: no lee bien manifest.json, necesita sus propios meta tags -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Busca dónde comer">
+    <meta name="apple-mobile-web-app-title" content="Gocheando">
     <link rel="apple-touch-icon" href="icon-180.png">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -262,6 +262,18 @@
             font-size: 0.65rem; font-weight: 700; min-width: 16px; height: 16px; border-radius: 8px;
             display: flex; align-items: center; justify-content: center; padding: 0 3px;
         }
+        /* Botón de filtros rectangular en su propia fila, debajo de la lupa y de
+           recargar (antes los 3 iban en la misma fila del buscador y "Recargar
+           datos" se quedaba muy a la derecha, poco visible). Icono + texto en vez
+           de un icono suelto, para que quede claro qué es de un vistazo. */
+        .btn-filters-wide {
+            position: relative; display: flex; align-items: center; justify-content: center; gap: 8px;
+            width: 100%; margin-top: 8px; padding: 12px 16px; border-radius: 14px;
+            border: 1px solid var(--gm-border); background: var(--gm-card-bg); color: var(--gm-dark);
+            font-size: 0.95rem; font-weight: 600; font-family: inherit; cursor: pointer;
+        }
+        .btn-filters-wide:hover { background: var(--gm-hover-bg); }
+        .btn-filters-icon { font-size: 1.15rem; }
 
         /* Hoja inferior (bottom sheet) de filtros: anclada al borde inferior de la
            pantalla, patrón estándar de apps móviles para paneles bajo demanda. */
@@ -544,7 +556,7 @@
     <header class="hero">
         <div class="hero-top">
             <div class="hero-titles">
-                <h1>Busca dónde comer</h1>
+                <h1>Gocheando</h1>
                 <p>Encuentra tu próximo sitio favorito, cerca de ti.</p>
             </div>
             <div class="header-corner-actions">
@@ -574,6 +586,7 @@
                     <textarea id="aiQueryInput" rows="2" placeholder='Escribe o dicta lo que te apetece comer y dónde...'></textarea>
                     <div class="ai-input-buttons">
                         <button type="button" class="btn-mic" id="aiMicBtn" onclick="toggleMic()" title="Dictar por voz">🎤</button>
+                        <button type="button" class="btn-mic" onclick="clearAiQueryText()" title="Borrar texto">🗑️</button>
                         <button type="button" class="btn-action" onclick="runAiSearch()">Preguntar</button>
                     </div>
                 </div>
@@ -671,11 +684,12 @@
                 <div class="search-box">
                     <input type="text" id="searchInput" placeholder="Buscar por nombre o calle...">
                     <button class="btn-icon-action" onclick="runManualSearch()" title="Buscar">🔍</button>
-                    <button class="btn-icon-action" id="filtersTriggerBtn" onclick="openFiltersDialog()" title="Filtros">
-                        🔧<span class="filters-badge" id="filtersBadge" style="display:none;">0</span>
-                    </button>
                     <button class="btn-icon-action" id="syncBtn" onclick="forceDataSync()" title="Recargar datos de Google">↻</button>
                 </div>
+                <button class="btn-filters-wide" id="filtersTriggerBtn" onclick="openFiltersDialog()" title="Filtros">
+                    <span class="btn-filters-icon">🎚️</span> Filtros
+                    <span class="filters-badge" id="filtersBadge" style="display:none;">0</span>
+                </button>
             </section>
 
         <dialog id="filtersDialog" class="apikey-dialog bottom-sheet">
@@ -1712,6 +1726,16 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
                 console.error('Error consultando a la IA:', error);
                 setAiStatus('No se pudo interpretar la petición: ' + error.message, true);
             }
+        }
+
+        // Borra el texto de la pregunta a la IA -- acción manual, solo con este botón.
+        // A propósito NO se borra solo en ningún otro sitio (ni al buscar, ni al
+        // cerrar el panel): así se puede matizar la petición anterior sin perderla
+        // por accidente, y solo desaparece cuando el usuario quiere empezar otra.
+        function clearAiQueryText() {
+            const input = document.getElementById('aiQueryInput');
+            input.value = '';
+            input.focus();
         }
 
         // Dictado por voz (Web Speech API): solo disponible en navegadores basados en

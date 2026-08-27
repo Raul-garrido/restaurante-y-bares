@@ -1,6 +1,6 @@
 {
-  "name": "Busca dónde comer",
-  "short_name": "Busca dónde comer",
+  "name": "Gocheando",
+  "short_name": "Gocheando",
   "description": "Directorio de restaurantes y bares con geolocalización, filtros y búsqueda por IA.",
   "start_url": "./index.html",
   "scope": "./",
