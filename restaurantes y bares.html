@@ -796,6 +796,11 @@
         let rawPlaces = [];
         let filteredPlaces = [];
         let currentPageIndex = 0;
+        // true solo para el listado por defecto (sin texto ni chips de tipo/cocina ni
+        // petición de IA): ese caso se ordena de más cerca a más lejos. En cuanto hay una
+        // búsqueda de verdad se respeta el orden de relevancia que ya trae Google -- ver
+        // startNewSearch() (donde se recalcula) y processAndRenderCurrentPage() (donde se usa).
+        let lastSearchWasDefault = true;
         const RESULTS_PER_PAGE = 6;
         let userPosition = null;
         let userLocationMarker = null;
@@ -1000,7 +1005,7 @@
                 // No hay campo "menú" en Places API (New) -- Google tampoco lo tiene, en
                 // su propia ficha de Maps la pestaña "Carta" cae al sitio web cuando no
                 // hay menú propio, así que hacemos lo mismo con websiteUri.
-                websiteUri: place.websiteUri || null,
+                websiteUri: place.websiteURI || null,
                 weekdayDescriptions: place.regularOpeningHours && place.regularOpeningHours.weekdayDescriptions
                     ? place.regularOpeningHours.weekdayDescriptions.slice()
                     : null,
@@ -1673,10 +1678,12 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
             currentPageIndex = 0;
 
             let textQuery = options.textQueryOverride;
+            lastSearchWasDefault = !textQuery;
             if (!textQuery) {
                 const textInput = document.getElementById('searchInput').value.trim();
                 const selectedTypes = getCheckedValues('typeCheckboxes');
                 const selectedCuisines = getCheckedValues('cuisineCheckboxes');
+                lastSearchWasDefault = !textInput && selectedTypes.length === 0 && selectedCuisines.length === 0;
 
                 let queryParts = [];
                 if (selectedCuisines.length > 0) queryParts.push(selectedCuisines.join(" o "));
@@ -1703,7 +1710,7 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
                 // de nivel de precio, así que añadirlos no cuesta más por petición.
                 // primaryTypeDisplayName es nivel "Pro" (más barato que Enterprise), así que
                 // al ir ya en una petición Enterprise tampoco añade coste extra.
-                fields: ['id', 'displayName', 'formattedAddress', 'location', 'rating', 'userRatingCount', 'priceLevel', 'photos', 'regularOpeningHours', 'businessStatus', 'primaryTypeDisplayName', 'websiteUri'],
+                fields: ['id', 'displayName', 'formattedAddress', 'location', 'rating', 'userRatingCount', 'priceLevel', 'photos', 'regularOpeningHours', 'businessStatus', 'primaryTypeDisplayName', 'websiteURI'],
                 maxResultCount: 20,
             };
             if (!options.skipLocationBias) {
@@ -1800,7 +1807,12 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
                 processed = processed.filter(p => p.rating && p.rating >= minRating);
             }
 
-            processed.sort((a, b) => a.calculatedDistance - b.calculatedDistance);
+            // Solo el listado por defecto se ordena por cercanía -- en cuanto hay una
+            // búsqueda de verdad (texto, chips o IA) se respeta el orden de relevancia
+            // que ya trae Google para esa consulta, en vez de forzar distancia.
+            if (lastSearchWasDefault) {
+                processed.sort((a, b) => a.calculatedDistance - b.calculatedDistance);
+            }
 
             filteredPlaces = processed;
             currentPageIndex = 0;
