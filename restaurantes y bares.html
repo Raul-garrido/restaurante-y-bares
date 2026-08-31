@@ -165,7 +165,10 @@
         .global-map-section.fullscreen-map .location-toggle { display: none; }
         .global-map-section.fullscreen-map #globalMap { flex-grow: 1; height: auto; border-radius: 0; border: none; }
         .map-fullscreen-bar {
-            position: absolute; top: 12px; left: 12px; z-index: 6;
+            /* Mismo motivo que .hero: en la PWA instalada, con el mapa a pantalla
+               completa, esta X quedaba dentro de la barra de estado del móvil, sin
+               poder tocarla salvo girando la pantalla. */
+            position: absolute; top: calc(12px + env(safe-area-inset-top)); left: 12px; z-index: 6;
         }
         .map-fullscreen-bar .btn-icon-action { background: var(--gm-card-bg); box-shadow: 0 2px 8px rgba(0,0,0,0.25); }
 
@@ -345,7 +348,12 @@
         }
         .swipe-btn-discard { background: var(--gm-card-bg); color: var(--gm-red); border: 2px solid var(--gm-red); }
         .swipe-btn-like { background: var(--gm-green); color: #fff; }
-        .swipe-progress { font-size: 0.85rem; color: var(--gm-gray); }
+        .swipe-progress { font-size: 0.85rem; color: var(--gm-gray); display: flex; align-items: center; justify-content: space-between; }
+        .swipe-random-btn {
+            background: none; border: 1px solid var(--gm-border); border-radius: 8px;
+            font-size: 1rem; width: 32px; height: 32px; cursor: pointer; opacity: 0.6;
+        }
+        .swipe-random-btn.active { opacity: 1; border-color: var(--gm-blue); background: var(--gm-hover-bg); }
         .swipe-empty { text-align: center; padding: 60px 20px; color: var(--gm-gray); max-width: 380px; }
 
         .favorites-list { display: flex; flex-direction: column; gap: 10px; max-height: 50vh; overflow-y: auto; margin-bottom: 16px; }
@@ -684,7 +692,11 @@
                 </button>
             </section>
 
-        <dialog id="filtersDialog" class="apikey-dialog bottom-sheet">
+        <!-- onclick en el propio <dialog>: un clic en el backdrop (fuera del contenido)
+             llega con target=el propio dialog, porque el backdrop no forma parte de la
+             caja de contenido. Un clic dentro nunca cumple la condición porque el target
+             es el elemento hijo tocado, no el dialog. -->
+        <dialog id="filtersDialog" class="apikey-dialog bottom-sheet" onclick="if (event.target === this) this.close()">
             <div class="bottom-sheet-handle" id="bottomSheetHandle"></div>
             <h2 id="filtersDialogTitle">Filtros <button type="button" class="ai-collapse-btn" onclick="document.getElementById('filtersDialog').close()" title="Cerrar">✕</button></h2>
 
@@ -1116,6 +1128,33 @@
         // --- Vista de descubrimiento tipo swipe ---
         let viewMode = 'grid';
         let swipeIndex = 0;
+        // Modo aleatorio de "Descubrir": swipeOrderPlaces es una copia barajada de
+        // filteredPlaces (se recalcula al activar el modo o al llegar resultados
+        // nuevos); null cuando el modo está desactivado, así se usa filteredPlaces
+        // directamente (el mismo orden que Rejilla).
+        let swipeRandomMode = false;
+        let swipeOrderPlaces = null;
+
+        function getSwipePlaces() {
+            if (!swipeRandomMode) return filteredPlaces;
+            if (!swipeOrderPlaces) swipeOrderPlaces = shuffleArray(filteredPlaces.slice());
+            return swipeOrderPlaces;
+        }
+
+        function shuffleArray(arr) {
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
+        function toggleSwipeRandom() {
+            swipeRandomMode = !swipeRandomMode;
+            swipeOrderPlaces = null;
+            swipeIndex = 0;
+            renderSwipeCard();
+        }
 
         function setViewMode(mode) {
             viewMode = mode;
@@ -1123,24 +1162,25 @@
             document.getElementById('venuesContainer').style.display = mode === 'grid' ? '' : 'none';
             document.getElementById('swipeContainer').style.display = mode === 'swipe' ? 'flex' : 'none';
             document.getElementById('paginationControls').style.display = (mode === 'grid' && filteredPlaces.length > 0) ? 'flex' : 'none';
-            if (mode === 'swipe') {
-                swipeIndex = 0;
-                renderSwipeCard();
-            }
+            // Sin reiniciar swipeIndex aquí: volver a "Descubrir" debe seguir donde se
+            // dejó, no empezar de cero -- solo una búsqueda nueva de verdad lo reinicia
+            // (ver processAndRenderCurrentPage).
+            if (mode === 'swipe') renderSwipeCard();
         }
 
         function renderSwipeCard() {
             const container = document.getElementById('swipeContainer');
-            if (filteredPlaces.length === 0) {
+            const places = getSwipePlaces();
+            if (places.length === 0) {
                 container.innerHTML = '<div class="swipe-empty">Todavía no hay resultados que explorar. Haz una búsqueda primero.</div>';
                 return;
             }
-            if (swipeIndex >= filteredPlaces.length) {
+            if (swipeIndex >= places.length) {
                 container.innerHTML = '<div class="swipe-empty">Has visto todos los locales de esta búsqueda 🎉<br>Prueba a cambiar de filtros o busca otra cosa.</div>';
                 return;
             }
 
-            const place = filteredPlaces[swipeIndex];
+            const place = places[swipeIndex];
             const photoUrl = getPlacePhotoUrl(place, 500, 400);
 
             const ratingBadge = place.rating ? `<span class="venue-badge venue-badge-rating">★ ${place.rating.toFixed(1)}</span>` : '';
@@ -1161,7 +1201,10 @@
             const priceStr = priceLevelNum ? ' · ' + '€'.repeat(priceLevelNum) : '';
 
             container.innerHTML = `
-                <div class="swipe-progress">${swipeIndex + 1} de ${filteredPlaces.length}</div>
+                <div class="swipe-progress">
+                    <span>${swipeIndex + 1} de ${places.length}</span>
+                    <button type="button" class="swipe-random-btn ${swipeRandomMode ? 'active' : ''}" onclick="toggleSwipeRandom()" title="${swipeRandomMode ? 'Orden aleatorio activado' : 'Orden aleatorio desactivado'}">🎲</button>
+                </div>
                 <div class="swipe-card" id="activeSwipeCard">
                     ${photoHtml}
                     <div class="swipe-card-body">
@@ -1182,7 +1225,7 @@
         }
 
         function swipeDecision(liked) {
-            const place = filteredPlaces[swipeIndex];
+            const place = getSwipePlaces()[swipeIndex];
             if (liked && place) addFavorite(place);
             swipeIndex++;
             renderSwipeCard();
@@ -1868,52 +1911,81 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
                 includedType = 'restaurant';
             }
 
-            // El includedType entra en la clave de caché: el mismo texto puede dar
-            // resultados distintos según se restrinja o no por tipo.
-            const cacheKey = buildSearchCacheKey(textQuery + '|type:' + (includedType || ''), options.skipLocationBias);
+            // El listado por defecto (sin texto/chips/IA) con GPS activo usa Nearby
+            // Search en vez de Text Search: Text Search ordena por relevancia de
+            // texto, no por distancia real, así que para una consulta genérica como
+            // "Restaurantes y bares recomendados" los locales realmente más cercanos
+            // podían no estar ni siquiera entre los 20 resultados que devolvía Google
+            // -- ordenar después por distancia no sirve de nada si nunca se pidieron.
+            // Nearby Search no admite texto libre, así que solo aplica a este caso
+            // concreto; cualquier búsqueda de verdad (texto, chips o IA) sigue usando
+            // Text Search como siempre.
+            const useNearbySearch = lastSearchWasDefault && !options.skipLocationBias;
+
+            // El includedType/useNearbySearch entran en la clave de caché: el mismo
+            // texto puede dar resultados distintos según se restrinja o no por tipo,
+            // o según qué API se haya usado para conseguirlos.
+            const cacheKey = buildSearchCacheKey(textQuery + '|type:' + (includedType || '') + '|nearby:' + useNearbySearch, options.skipLocationBias);
             const cached = options.bypassCache ? null : readSearchCache(cacheKey);
             if (cached) {
                 handlePlacesResponse(cached);
                 return;
             }
 
-            // Place.searchByText (Places API New): basado en promesas, sin paginación
-            // por token/nextPage — máximo 20 resultados por llamada (maxResultCount).
-            const request = {
-                textQuery: textQuery,
-                // regularOpeningHours/businessStatus son campos "Enterprise" igual que
-                // rating/priceLevel/userRatingCount, que ya estábamos pidiendo -- no sube
-                // de nivel de precio, así que añadirlos no cuesta más por petición.
-                // primaryTypeDisplayName es nivel "Pro" (más barato que Enterprise), así que
-                // al ir ya en una petición Enterprise tampoco añade coste extra.
-                fields: ['id', 'displayName', 'formattedAddress', 'location', 'rating', 'userRatingCount', 'priceLevel', 'photos', 'regularOpeningHours', 'businessStatus', 'primaryTypeDisplayName', 'websiteURI'],
-                maxResultCount: 20,
-                // Sesga (no restringe de forma estricta) hacia España -- sin esto, una
-                // búsqueda de solo texto sin locationBias (GPS desactivado, o la IA
-                // buscando en otra localidad) podía traer sitios de cualquier país de
-                // habla hispana (p.ej. una universidad en Asunción, Paraguay, para
-                // "Americana"). Al ser un sesgo y no una restricción dura, una petición
-                // que sí pida explícitamente otro país debería poder seguir encontrándolo.
-                region: 'es',
-            };
-            if (includedType) {
-                request.includedType = includedType;
-                request.useStrictTypeFiltering = true;
-            }
-            if (!options.skipLocationBias) {
-                request.locationBias = {
-                    center: userPosition,
-                    radius: 10000,
+            // regularOpeningHours/businessStatus son campos "Enterprise" igual que
+            // rating/priceLevel/userRatingCount, que ya estábamos pidiendo -- no sube
+            // de nivel de precio, así que añadirlos no cuesta más por petición.
+            // primaryTypeDisplayName es nivel "Pro" (más barato que Enterprise), así que
+            // al ir ya en una petición Enterprise tampoco añade coste extra.
+            const fields = ['id', 'displayName', 'formattedAddress', 'location', 'rating', 'userRatingCount', 'priceLevel', 'photos', 'regularOpeningHours', 'businessStatus', 'primaryTypeDisplayName', 'websiteURI'];
+
+            let request;
+            if (useNearbySearch) {
+                request = {
+                    fields,
+                    locationRestriction: { center: userPosition, radius: 10000 },
+                    includedPrimaryTypes: ['restaurant'],
+                    maxResultCount: 20,
+                    rankPreference: google.maps.places.SearchNearbyRankPreference.DISTANCE,
+                    region: 'es',
                 };
+            } else {
+                // Place.searchByText (Places API New): basado en promesas, sin
+                // paginación por token/nextPage — máximo 20 resultados por llamada.
+                request = {
+                    textQuery: textQuery,
+                    fields,
+                    maxResultCount: 20,
+                    // Sesga (no restringe de forma estricta) hacia España -- sin esto,
+                    // una búsqueda de solo texto sin locationBias (GPS desactivado, o
+                    // la IA buscando en otra localidad) podía traer sitios de
+                    // cualquier país de habla hispana (p.ej. una universidad en
+                    // Asunción, Paraguay, para "Americana"). Al ser un sesgo y no una
+                    // restricción dura, una petición que sí pida explícitamente otro
+                    // país debería poder seguir encontrándolo.
+                    region: 'es',
+                };
+                if (includedType) {
+                    request.includedType = includedType;
+                    request.useStrictTypeFiltering = true;
+                }
+                if (!options.skipLocationBias) {
+                    request.locationBias = {
+                        center: userPosition,
+                        radius: 10000,
+                    };
+                }
             }
 
             try {
-                const { places } = await google.maps.places.Place.searchByText(request);
+                const { places } = useNearbySearch
+                    ? await google.maps.places.Place.searchNearby(request)
+                    : await google.maps.places.Place.searchByText(request);
                 const plainPlaces = places.map(toPlainPlace);
                 writeSearchCache(cacheKey, plainPlaces);
                 handlePlacesResponse(plainPlaces);
             } catch (error) {
-                console.error('Error en Place.searchByText:', error);
+                console.error('Error en Place.searchByText/searchNearby:', error);
                 const message = (error && error.message) || '';
                 const isKeyProblem = /api key|permission|forbidden|invalid_argument/i.test(message)
                     || (error && (error.code === 'INVALID_ARGUMENT' || error.code === 'PERMISSION_DENIED'));
@@ -2023,6 +2095,13 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
 
             filteredPlaces = processed;
             currentPageIndex = 0;
+            // El conjunto a explorar cambió de verdad (búsqueda nueva o filtro
+            // distinto) -- aquí sí toca reiniciar la posición de "Descubrir" y
+            // recalcular el barajado si el modo aleatorio está activo. Cambiar de
+            // vista (Rejilla <-> Descubrir) o paginar en Rejilla ya NO pasa por aquí,
+            // así que no reinicia nada (ver setViewMode/renderCurrentPage).
+            swipeIndex = 0;
+            swipeOrderPlaces = null;
             renderCurrentPage();
         }
 
@@ -2045,7 +2124,6 @@ Recuerda que Google Places (New) devuelve como máximo 20 resultados por búsque
             document.getElementById('resultsCount').textContent = `${filteredPlaces.length} locales encontrados`;
             document.getElementById('mapCounterBadge').textContent = `${pagePlaces.length} chinchetas`;
 
-            swipeIndex = 0;
             if (viewMode === 'swipe') renderSwipeCard();
         }
 
