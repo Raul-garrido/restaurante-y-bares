@@ -1609,8 +1609,14 @@
             const btn = document.getElementById('syncBtn');
             btn.disabled = true;
             btn.style.opacity = '0.5';
-            // bypassCache: true -- es literalmente el propósito de este botón, forzar una
-            // consulta nueva a Google en vez de servir lo último que hubiera en caché.
+            // Este botón ya no repite la última búsqueda con lo que hubiera puesto --
+            // vuelve al estado inicial de la app (sin texto en el buscador manual ni en
+            // la IA, sin ningún filtro) y refresca datos de Google sin caché, como al
+            // arrancar. bypassCache:true sigue siendo necesario para que de verdad
+            // vuelva a consultar a Google en vez de servir lo último cacheado.
+            document.getElementById('searchInput').value = '';
+            document.getElementById('aiQueryInput').value = '';
+            resetSearchFilters();
             startNewSearch({ bypassCache: true });
             setTimeout(() => { btn.disabled = false; btn.style.opacity = ''; }, 800);
         }
